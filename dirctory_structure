@@ -1,0 +1,212 @@
+mycppwebfw/                              # project root
+├── .github/                             # GitHub configuration
+│   ├── workflows/
+│   │   ├── ci.yml
+│   │   └── cd.yml
+│   └── ISSUE_TEMPLATE.md
+├── ci/                                  # Other CI scripts (Jenkins, GitLab)
+│   └── lint_and_test.sh
+├── cmake/                               # CMake helper modules
+│   ├── FindAsio.cmake
+│   ├── FindGTest.cmake
+│   └── macros.cmake
+├── config/                              # Default runtime configs
+│   ├── app.default.json
+│   ├── logging.default.yaml
+│   ├── routes.default.toml
+│   └── security.default.yaml
+├── docs/                                # Documentation site content
+│   ├── architecture.md
+│   ├── design_principles.md
+│   ├── getting_started.md
+│   ├── api_reference.md
+│   ├── CHANGELOG.md
+│   ├── modules/
+│   │   ├── core.md
+│   │   ├── routing.md
+│   │   ├── middleware.md
+│   │   ├── http.md
+│   │   ├── utils.md
+│   │   ├── json.md
+│   │   ├── form.md
+│   │   ├── staticfiles.md
+│   │   ├── websocket.md
+│   │   ├── ssl.md
+│   │   ├── auth.md
+│   │   ├── session.md
+│   │   └── security.md
+│   └── howto/
+│       ├── deploy_with_docker.md
+│       ├── integrate_prometheus.md
+│       └── writing_middleware.md
+├── examples/                            # Sample apps
+│   ├── hello_world/
+│   │   ├── CMakeLists.txt
+│   │   └── main.cpp
+│   ├── rest_api/
+│   │   ├── CMakeLists.txt
+│   │   └── app.cpp
+│   ├── websocket_demo/
+│   │   ├── CMakeLists.txt
+│   │   └── ws_server.cpp
+│   ├── microservice/
+│   │   └── CMakeLists.txt
+│   └── full_app/
+│       ├── CMakeLists.txt
+│       └── main.cpp
+├── include/mycppwebfw/                  # Public headers
+│   ├── core/
+│   │   ├── server.h
+│   │   ├── thread_pool.h
+│   │   ├── buffer_pool.h
+│   │   └── signal_handler.h
+│   ├── routing/
+│   │   ├── router.h
+│   │   ├── route_matcher.h
+│   │   ├── parameter_parser.h
+│   │   └── route_group.h
+│   ├── middleware/
+│   │   ├── middleware.h
+│   │   ├── chain.h
+│   │   ├── error_handler.h
+│   │   ├── cors.h
+│   │   ├── logging.h
+│   │   ├── compression.h
+│   │   ├── rate_limiter.h
+│   │   └── request_id.h
+│   ├── http/
+│   │   ├── request.h
+│   │   ├── response.h
+│   │   ├── parser.h
+│   │   └── content_negotiation.h
+│   ├── utils/
+│   │   ├── logger.h
+│   │   ├── config.h
+│   │   ├── metrics.h
+│   │   └── health_check.h
+│   ├── json/
+│   │   └── json_adapter.h
+│   ├── form/
+│   │   ├── urlencoded.h
+│   │   └── multipart.h
+│   ├── staticfiles/
+│   │   └── static_handler.h
+│   ├── websocket/
+│   │   └── websocket.h
+│   ├── ssl/
+│   │   └── tls_context.h
+│   ├── auth/
+│   │   ├── jwt_auth.h
+│   │   └── oauth2.h
+│   ├── session/
+│   │   └── session_manager.h
+│   └── security/
+│       ├── csrf.h
+│       └── headers.h
+├── src/                                 # Implementation
+│   ├── core/
+│   │   ├── server.cpp
+│   │   ├── thread_pool.cpp
+│   │   ├── buffer_pool.cpp
+│   │   └── signal_handler.cpp
+│   ├── routing/
+│   │   ├── router.cpp
+│   │   ├── route_matcher.cpp
+│   │   ├── parameter_parser.cpp
+│   │   └── route_group.cpp
+│   ├── middleware/
+│   │   ├── chain.cpp
+│   │   ├── error_handler.cpp
+│   │   ├── cors.cpp
+│   │   ├── logging.cpp
+│   │   ├── compression.cpp
+│   │   ├── rate_limiter.cpp
+│   │   └── request_id.cpp
+│   ├── http/
+│   │   ├── request.cpp
+│   │   ├── response.cpp
+│   │   ├── parser.cpp
+│   │   └── content_negotiation.cpp
+│   ├── utils/
+│   │   ├── logger.cpp
+│   │   ├── config.cpp
+│   │   ├── metrics.cpp
+│   │   └── health_check.cpp
+│   ├── json/
+│   │   └── json_adapter.cpp
+│   ├── form/
+│   │   ├── urlencoded.cpp
+│   │   └── multipart.cpp
+│   ├── staticfiles/
+│   │   └── static_handler.cpp
+│   ├── websocket/
+│   │   └── websocket.cpp
+│   ├── ssl/
+│   │   └── tls_context.cpp
+│   ├── auth/
+│   │   ├── jwt_auth.cpp
+│   │   └── oauth2.cpp
+│   ├── session/
+│   │   └── session_manager.cpp
+│   └── security/
+│       ├── csrf.cpp
+│       └── headers.cpp
+├── tests/                               # Unit & integration tests
+│   ├── core_tests/
+│   │   ├── server_test.cpp
+│   │   └── thread_pool_test.cpp
+│   ├── routing_tests/
+│   │   └── router_test.cpp
+│   ├── middleware_tests/
+│   │   └── cors_test.cpp
+│   ├── http_tests/
+│   │   └── parser_test.cpp
+│   ├── utils_tests/
+│   │   └── logger_test.cpp
+│   ├── json_tests/
+│   │   └── json_adapter_test.cpp
+│   ├── form_tests/
+│   │   └── multipart_test.cpp
+│   ├── staticfiles_tests/
+│   │   └── static_handler_test.cpp
+│   ├── websocket_tests/
+│   │   └── websocket_test.cpp
+│   ├── ssl_tests/
+│   │   └── tls_context_test.cpp
+│   ├── auth_tests/
+│   │   └── jwt_auth_test.cpp
+│   ├── session_tests/
+│   │   └── session_manager_test.cpp
+│   └── security_tests/
+│       └── csrf_test.cpp
+├── benchmarks/                          # Performance benchmarks
+│   ├── core_bench/
+│   │   └── server_bench.cpp
+│   ├── routing_bench/
+│   │   └── router_bench.cpp
+│   ├── middleware_bench/
+│   │   └── rate_limiter_bench.cpp
+│   ├── http_bench/
+│   │   └── parser_bench.cpp
+│   └── perf_utils/
+│       └── benchmark_helpers.cpp
+├── scripts/                             # Helper scripts
+│   ├── format.sh
+│   ├── lint.sh
+│   ├── release.sh
+│   └── generate_docs.sh
+├── docker/                              # Containerization
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── tools/                               # Internal dev tools
+│   └── codegen/
+│       ├── CMakeLists.txt
+│       └── codegen.cpp
+├── .clang-format                        # Formatting rules
+├── .gitignore
+├── CMakeLists.txt                       # Top‑level build script
+├── CONTRIBUTING.md
+├── LICENSE
+└── README.md
+
+
