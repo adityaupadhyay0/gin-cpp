@@ -1,1 +1,33 @@
-# Ignore build files
+# Build artifacts
+build/
+bin/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# User-specific files
+*.user
+*.suo
+.DS_Store
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.sln
+*.vcxproj*
+*.swp
+*~
