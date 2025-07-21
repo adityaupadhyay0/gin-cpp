@@ -1,1 +1,31 @@
 # GitHub Actions CI workflow
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v2
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake ninja-build
+
+      - name: Configure
+        run: cmake -S mycppwebfw -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: cd build && ctest --output-on-failure

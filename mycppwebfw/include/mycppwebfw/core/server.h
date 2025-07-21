@@ -2,6 +2,9 @@
 
 #include "asio.hpp"
 #include "mycppwebfw/core/connection_manager.h"
+#include "mycppwebfw/core/signal_handler.h"
+#include "mycppwebfw/core/thread_pool.h"
+#include "mycppwebfw/core/buffer_pool.h"
 #include <string>
 
 namespace mycppwebfw {
@@ -16,14 +19,17 @@ public:
 
     void run();
 
-private:
     void do_accept();
-    void do_await_stop();
+    void graceful_shutdown(int signo);
+    void reload_config();
 
     asio::io_context io_context_;
-    asio::signal_set signals_;
     asio::ip::tcp::acceptor acceptor_;
     ConnectionManager connection_manager_;
+    std::unique_ptr<SignalHandler> signal_handler_;
+    std::unique_ptr<ThreadPool> thread_pool_;
+    ThreadPoolConfig thread_pool_config_;
+    std::shared_ptr<BufferPool<>> buffer_pool_;
 };
 
 } // namespace core

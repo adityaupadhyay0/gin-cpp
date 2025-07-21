@@ -1,3 +1,9 @@
+TEST_F(ServerTest, SignalHandlingShutdown) {
+    // Simulate SIGINT and verify server stops gracefully
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_NO_THROW(raise(SIGINT));
+    // Server thread should join in TearDown
+}
 #include "gtest/gtest.h"
 #include "mycppwebfw/core/server.h"
 #include <thread>

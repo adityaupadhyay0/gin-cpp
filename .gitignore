@@ -1,1 +1,35 @@
 build/
+# Build artifacts
+/build/
+/bin/
+/CMakeFiles/
+/CMakeCache.txt
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.a
+*.lib
+*.pch
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+
+# Generated files
+*.generated.*
+
+# Others
+*.swp
+*.bak

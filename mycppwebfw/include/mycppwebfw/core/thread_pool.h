@@ -45,11 +45,16 @@ public:
     template<class F>
     void enqueue(F&& f);
 
+    // Dynamic resizing support
+    void resize(size_t new_size);
+
 private:
-    void worker_thread();
+    // Worker thread now takes a per-thread stop flag
+    void worker_thread(std::shared_ptr<std::atomic<bool>> stop_flag);
 
     ThreadPoolConfig config_;
     std::vector<std::thread> workers_;
+    std::vector<std::shared_ptr<std::atomic<bool>>> stop_flags_;
     std::queue<std::function<void()>> tasks_;
     std::mutex queue_mutex_;
     std::condition_variable condition_;
