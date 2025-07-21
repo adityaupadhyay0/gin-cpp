@@ -1,5 +1,29 @@
 # Core Module: Signal Handling & Graceful Shutdown
 
+# Testing & Benchmarking
+
+## Unit Testing
+- All core components (ThreadPool, Server, BufferPool, Connection, Middleware) have GoogleTest coverage in `tests/core_tests/`
+- Signal handling and resource cleanup are tested
+
+## Integration Testing
+- Simulate multiple clients, concurrent requests, shutdown/reload
+- Validate resource cleanup under load
+
+## Performance Benchmarks
+- See `benchmarks/core_bench/server_bench.cpp` for server throughput
+
+## Example Test
+```cpp
+TEST(ThreadPoolTest, EnqueueAndExecuteTask) {
+    // ...
+}
+```
+
+## See Also
+- `docs/api_reference.md` for API details
+- `docs/getting_started.md` for quickstart
+
 ## Signal Handling
 - Integrated Asio-based signal handling for SIGINT/SIGTERM (graceful shutdown) and SIGHUP (config reload).
 - Server automatically closes connections, releases buffers, and stops thread pool on shutdown signal.
