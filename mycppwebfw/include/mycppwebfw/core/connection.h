@@ -20,6 +20,7 @@ enum class ConnState {
 };
 
 class Connection : public std::enable_shared_from_this<Connection> {
+    friend class ConnectionLifecycle_MultipleRequestsWithKeepAlive_Test;
 public:
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
@@ -36,9 +37,10 @@ public:
     void set_write_timeout(size_t ms);
     ConnState get_state() const;
 
-private:
+public:
     void do_read();
     void do_write();
+private:
     void on_timeout(const asio::error_code& ec);
     void transition_state(ConnState new_state);
     void shutdown();

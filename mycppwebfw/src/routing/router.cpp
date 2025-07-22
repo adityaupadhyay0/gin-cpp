@@ -1,8 +1,6 @@
 #include "mycppwebfw/routing/router.h"
 #include "mycppwebfw/routing/route_matcher.h"
-#include "mycppwebfw/utils/logger.h"
 #include <sstream>
-#include <iostream>
 
 namespace mycppwebfw {
 namespace routing {
@@ -12,7 +10,6 @@ Router::Router() {}
 Router::~Router() {}
 
 void Router::add_route(const std::string& method, const std::string& path, HttpHandler handler) {
-    LOG_DEBUG("Adding route: " + method + " " + path);
     if (trees.find(method) == trees.end()) {
         trees[method] = std::make_shared<TrieNode>("", NodeType::STATIC);
     }
@@ -48,16 +45,10 @@ void Router::add_route(const std::string& method, const std::string& path, HttpH
 }
 
 HttpHandler Router::match_route(const std::string& method, const std::string& path, std::unordered_map<std::string, std::string>& params) {
-    LOG_DEBUG("Matching route: " + method + " " + path);
     if (trees.find(method) == trees.end()) {
-        LOG_DEBUG("No routes found for method: " + method);
         return nullptr;
     }
-    auto handler = RouteMatcher::match(trees[method], path, params);
-    if (handler == nullptr) {
-        LOG_DEBUG("No matching route found for: " + path);
-    }
-    return handler;
+    return RouteMatcher::match(trees[method], path, params);
 }
 
 } // namespace routing

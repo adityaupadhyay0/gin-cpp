@@ -1,9 +1,3 @@
-TEST_F(ServerTest, SignalHandlingShutdown) {
-    // Simulate SIGINT and verify server stops gracefully
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    EXPECT_NO_THROW(raise(SIGINT));
-    // Server thread should join in TearDown
-}
 #include "gtest/gtest.h"
 #include "mycppwebfw/core/server.h"
 #include <thread>
@@ -36,6 +30,13 @@ protected:
     std::thread server_thread_;
 };
 
+TEST_F(ServerTest, SignalHandlingShutdown) {
+    // Simulate SIGINT and verify server stops gracefully
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_NO_THROW(raise(SIGINT));
+    // Server thread should join in TearDown
+}
+
 TEST_F(ServerTest, SimpleRequest) {
     asio::io_context io_context;
     asio::ip::tcp::socket socket(io_context);
@@ -44,7 +45,7 @@ TEST_F(ServerTest, SimpleRequest) {
     try {
         asio::connect(socket, resolver.resolve("127.0.0.1", "8080"));
 
-        std::string request = "GET /test HTTP/1.1\r\n\r\n";
+        std::string request = "GET /hello HTTP/1.1\r\n\r\n";
         asio::write(socket, asio::buffer(request));
 
         asio::streambuf response_buf;
