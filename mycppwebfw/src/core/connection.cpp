@@ -7,7 +7,7 @@ namespace mycppwebfw {
 namespace core {
 
 
-std::shared_ptr<BufferPool> Connection::buffer_pool_ = std::make_shared<BufferPool>(8192, 128);
+std::shared_ptr<BufferPool<>> Connection::buffer_pool_ = std::make_shared<BufferPool<>>(8192, 128);
 
 Connection::Connection(asio::ip::tcp::socket socket, ConnectionManager& manager)
     : socket_(std::move(socket)),
@@ -52,26 +52,32 @@ void Connection::do_read() {
                     request_, buffer_->data(), buffer_->data() + bytes_transferred);
 
                 // Keep-alive header handling
-                auto conn_hdr = request_.headers.find("Connection");
+                auto conn_hdr = std::find_if(request_.headers.begin(), request_.headers.end(),
+                    [](const http::Header& h) { return h.name == "Connection"; });
                 if (conn_hdr != request_.headers.end()) {
-                    std::string val = conn_hdr->second;
+                    std::string val = conn_hdr->value;
                     for (auto& c : val) c = tolower(c);
                     keep_alive_ = (val.find("keep-alive") != std::string::npos);
                 } else {
-                    keep_alive_ = (request_.http_version == "1.1"); // Default for HTTP/1.1
+                    keep_alive_ = (request_.http_version_major == 1 && request_.http_version_minor == 1); // Default for HTTP/1.1
                 }
 
                 if (result == http::Parser::ParseResult::GOOD) {
                     // Validate protocol compliance
                     bool valid = true;
-                    if (request_.http_version != "1.1" && request_.http_version != "1.0") {
+                    if ((request_.http_version_major != 1 || request_.http_version_minor != 1) &&
+                        (request_.http_version_major != 1 || request_.http_version_minor != 0)) {
                         valid = false;
                     }
                     if (request_.method.empty() || request_.uri.empty()) {
                         valid = false;
                     }
-                    if (request_.http_version == "1.1" && request_.headers.find("Host") == request_.headers.end()) {
-                        valid = false;
+                    if (request_.http_version_major == 1 && request_.http_version_minor == 1) {
+                        auto host_hdr = std::find_if(request_.headers.begin(), request_.headers.end(),
+                            [](const http::Header& h) { return h.name == "Host"; });
+                        if (host_hdr == request_.headers.end()) {
+                            valid = false;
+                        }
                     }
                     if (!valid) {
                         response_ = http::Response::stock_response(http::Response::StatusCode::bad_request);

@@ -42,12 +42,15 @@ private:
     void on_timeout(const asio::error_code& ec);
     void transition_state(ConnState new_state);
     void shutdown();
+    void start_idle_timer();
+    void start_read_timer();
+    void start_write_timer();
 
     asio::ip::tcp::socket socket_;
     ConnectionManager& connection_manager_;
 
     std::shared_ptr<std::vector<char>> buffer_;
-    static std::shared_ptr<BufferPool> buffer_pool_;
+    static std::shared_ptr<BufferPool<>> buffer_pool_;
 
     http::Request request_;
     http::Response response_;
