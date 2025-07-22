@@ -5,7 +5,8 @@ namespace core {
 
 ThreadPool::ThreadPool(const ThreadPoolConfig& config) : config_(config), stop_(false) {
     for (size_t i = 0; i < config_.min_threads; ++i) {
-        workers_.emplace_back(&ThreadPool::worker_thread, this);
+        stop_flags_.emplace_back(std::make_shared<std::atomic<bool>>(false));
+        workers_.emplace_back(&ThreadPool::worker_thread, this, stop_flags_.back());
     }
 }
 
@@ -40,8 +41,8 @@ ThreadPool& ThreadPool::operator=(ThreadPool&& other) noexcept {
     return *this;
 }
 
-void ThreadPool::worker_thread() {
-    while (!stop_) {
+void ThreadPool::worker_thread(std::shared_ptr<std::atomic<bool>> stop_flag) {
+    while (!(*stop_flag)) {
         std::function<void()> task;
         {
             std::unique_lock<std::mutex> lock(queue_mutex_);

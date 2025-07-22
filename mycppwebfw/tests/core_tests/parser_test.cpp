@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
-#include "mycppwebfw/core/http/parser.h"
-#include "mycppwebfw/core/http/request.h"
+#include "mycppwebfw/http/parser.h"
+#include "mycppwebfw/http/request.h"
+
+using namespace mycppwebfw;
 
 TEST(HttpParserTest, ValidRequest) {
     http::Request req;
@@ -10,8 +12,12 @@ TEST(HttpParserTest, ValidRequest) {
     ASSERT_EQ(result, http::Parser::ParseResult::GOOD);
     ASSERT_EQ(req.method, "GET");
     ASSERT_EQ(req.uri, "/");
-    ASSERT_EQ(req.http_version, "1.1");
-    ASSERT_EQ(req.headers["Host"], "localhost");
+    ASSERT_EQ(req.http_version_major, 1);
+    ASSERT_EQ(req.http_version_minor, 1);
+    auto host_hdr = std::find_if(req.headers.begin(), req.headers.end(),
+        [](const http::Header& h) { return h.name == "Host"; });
+    ASSERT_NE(host_hdr, req.headers.end());
+    ASSERT_EQ(host_hdr->value, "localhost");
 }
 
 TEST(HttpParserTest, InvalidRequest) {

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "mycppwebfw/core/connection.h"
+#include "mycppwebfw/core/connection_manager.h"
 #include "asio.hpp"
 #include <memory>
 #include <thread>
