@@ -39,6 +39,26 @@ struct TrieNode
     }
 };
 
+class Router;
+
+class RouteGroup
+{
+public:
+    RouteGroup(const std::string& prefix, Router* router, const std::vector<HttpHandler>& middlewares = {});
+    void add_route(const std::string& method, const std::string& path,
+                   HttpHandler handler,
+                   const std::vector<HttpHandler>& middlewares = {},
+                   const std::string& name = "");
+    void group(const std::string& prefix,
+               const std::vector<HttpHandler>& middlewares,
+               const std::function<void(RouteGroup&)>& group_routes);
+
+private:
+    std::string prefix;
+    Router* router;
+    std::vector<HttpHandler> middlewares;
+};
+
 class Router
 {
 public:
@@ -47,7 +67,14 @@ public:
 
     void add_route(const std::string& method, const std::string& path,
                    HttpHandler handler,
-                   const std::vector<HttpHandler>& middlewares = {});
+                   const std::vector<HttpHandler>& middlewares = {},
+                   const std::string& name = "");
+    void group(const std::string& prefix,
+               const std::function<void(RouteGroup&)>& group_routes);
+    void group(const std::string& prefix,
+                const std::vector<HttpHandler>& middlewares,
+                const std::function<void(RouteGroup&)>& group_routes);
+
     struct MatchResult
     {
         HttpHandler handler;
@@ -59,8 +86,14 @@ public:
     match_route(http::Request& request,
                 std::unordered_map<std::string, std::string>& params);
 
+    std::string
+    url_for(const std::string& name,
+            const std::unordered_map<std::string, std::string>& params = {});
+
 private:
+    friend class RouteGroup;
     std::unordered_map<std::string, std::shared_ptr<TrieNode>> trees;
+    std::unordered_map<std::string, std::string> named_routes;
 };
 
 }  // namespace routing

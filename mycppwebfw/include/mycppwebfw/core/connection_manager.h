@@ -19,6 +19,7 @@ public:
     void start(std::shared_ptr<ConnectionType> c);
     void stop(std::shared_ptr<ConnectionType> c);
     void stop_all();
+    size_t get_connection_count() const;
 
 private:
     std::set<std::shared_ptr<ConnectionType>> connections_;
@@ -51,6 +52,11 @@ void ConnectionManager<ConnectionType>::stop_all() {
         c->stop();
     }
     connections_.clear();
+}
+
+template <typename ConnectionType>
+size_t ConnectionManager<ConnectionType>::get_connection_count() const {
+    return connections_.size();
 }
 
 } // namespace core
