@@ -10,6 +10,7 @@
 namespace mycppwebfw {
 namespace core {
 
+template<typename ConnectionType>
 class ConnectionManager;
 
 enum class ConnState {
@@ -26,7 +27,7 @@ public:
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
 
-    explicit Connection(SocketType socket, ConnectionManager& manager);
+    explicit Connection(SocketType socket, ConnectionManager<Connection<SocketType>>& manager);
 
     void start();
     void stop();
@@ -50,7 +51,7 @@ private:
     void start_write_timer();
 
     SocketType socket_;
-    ConnectionManager& connection_manager_;
+    ConnectionManager<Connection<SocketType>>& connection_manager_;
 
     std::shared_ptr<std::vector<char>> buffer_;
     static std::shared_ptr<BufferPool<>> buffer_pool_;
