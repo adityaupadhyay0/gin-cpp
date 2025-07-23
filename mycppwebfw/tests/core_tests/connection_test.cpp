@@ -14,8 +14,8 @@ class DummyManager : public ConnectionManager {
 TEST(ConnectionLifecycle, KeepAliveFlag) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->set_keep_alive(true);
     EXPECT_TRUE(conn->get_state() == ConnState::Idle || conn->get_state() == ConnState::Closed);
 }
@@ -23,8 +23,8 @@ TEST(ConnectionLifecycle, KeepAliveFlag) {
 TEST(ConnectionLifecycle, TimeoutSettings) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->set_idle_timeout(100);
     conn->set_read_timeout(100);
     conn->set_write_timeout(100);
@@ -34,8 +34,8 @@ TEST(ConnectionLifecycle, TimeoutSettings) {
 TEST(ConnectionLifecycle, StateTransitions) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->start();
     EXPECT_EQ(conn->get_state(), ConnState::Reading);
     conn->stop();
@@ -45,29 +45,33 @@ TEST(ConnectionLifecycle, StateTransitions) {
 TEST(ConnectionLifecycle, IdleTimeoutClosesConnection) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->set_idle_timeout(1); // 1ms for fast test
     conn->start();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    asio::steady_timer timer(io, std::chrono::milliseconds(10));
+    timer.wait();
+    io.run();
     EXPECT_EQ(conn->get_state(), ConnState::Closed);
 }
 
 TEST(ConnectionLifecycle, AbruptDisconnectCleansUp) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->start();
     conn->stop(); // Simulate abrupt disconnect
     EXPECT_EQ(conn->get_state(), ConnState::Closed);
 }
 
+using TcpSocket = asio::ip::tcp::socket;
+
 TEST(ConnectionLifecycle, MultipleRequestsWithKeepAlive) {
     asio::io_context io;
     DummyManager mgr;
-    asio::ip::tcp::socket sock(io);
-    auto conn = std::make_shared<Connection>(std::move(sock), mgr);
+    TcpSocket sock(io);
+    auto conn = std::make_shared<Connection<TcpSocket>>(std::move(sock), mgr);
     conn->set_keep_alive(true);
     conn->start();
     // Simulate multiple requests by calling do_read and do_write

@@ -10,6 +10,8 @@
 namespace mycppwebfw {
 namespace core {
 
+using TcpSocketConnection = Connection<asio::ip::tcp::socket>;
+
 class Server {
 public:
     Server(const Server&) = delete;
@@ -25,7 +27,7 @@ public:
 
     asio::io_context io_context_;
     asio::ip::tcp::acceptor acceptor_;
-    ConnectionManager connection_manager_;
+    ConnectionManager<TcpSocketConnection> connection_manager_;
     std::unique_ptr<SignalHandler> signal_handler_;
     std::unique_ptr<ThreadPool> thread_pool_;
     ThreadPoolConfig thread_pool_config_;

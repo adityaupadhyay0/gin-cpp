@@ -1,4 +1,6 @@
 #include "mycppwebfw/core/server.h"
+#include "mycppwebfw/core/connection.h"
+#include "mycppwebfw/core/connection.h"
 #include <signal.h>
 #include <iostream>
 #include <utility>
@@ -45,7 +47,7 @@ void Server::do_accept() {
             }
 
             if (!ec) {
-                connection_manager_.start(std::make_shared<Connection>(
+                connection_manager_.start(std::make_shared<TcpSocketConnection>(
                     std::move(socket), connection_manager_));
             } else {
                 std::cerr << "Accept error: " << ec.message() << std::endl;

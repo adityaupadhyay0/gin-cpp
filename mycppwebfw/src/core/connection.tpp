@@ -7,28 +7,30 @@
 namespace mycppwebfw {
 namespace core {
 
+template <typename SocketType>
+std::shared_ptr<BufferPool<>> Connection<SocketType>::buffer_pool_ = std::make_shared<BufferPool<>>(8192, 128);
 
-std::shared_ptr<BufferPool<>> Connection::buffer_pool_ = std::make_shared<BufferPool<>>(8192, 128);
-
-Connection::Connection(asio::ip::tcp::socket socket, ConnectionManager& manager)
+template <typename SocketType>
+Connection<SocketType>::Connection(SocketType socket, ConnectionManager& manager)
     : socket_(std::move(socket)),
       connection_manager_(manager),
       timer_(socket_.get_executor()) {
     buffer_ = buffer_pool_->acquire();
 }
 
-void Connection::start() {
+template <typename SocketType>
+void Connection<SocketType>::start() {
     transition_state(ConnState::Reading);
-    start_idle_timer();
     do_read();
 }
 
-
-void Connection::stop() {
+template <typename SocketType>
+void Connection<SocketType>::stop() {
     shutdown();
 }
 
-void Connection::shutdown() {
+template <typename SocketType>
+void Connection<SocketType>::shutdown() {
     transition_state(ConnState::Closed);
     asio::error_code ec;
     timer_.cancel();
@@ -39,9 +41,9 @@ void Connection::shutdown() {
     }
 }
 
-
-void Connection::do_read() {
-    auto self(shared_from_this());
+template <typename SocketType>
+void Connection<SocketType>::do_read() {
+    auto self(this->shared_from_this());
     transition_state(ConnState::Reading);
     start_read_timer();
     socket_.async_read_some(asio::buffer(*buffer_),
@@ -96,13 +98,14 @@ void Connection::do_read() {
                 std::cerr << "Socket read error: " << ec.message() << std::endl;
                 response_ = http::Response::stock_response(http::Response::StatusCode::internal_server_error);
                 do_write();
-                connection_manager_.stop(shared_from_this());
+                connection_manager_.stop(this->shared_from_this());
             }
         });
 }
 
-void Connection::do_write() {
-    auto self(shared_from_this());
+template <typename SocketType>
+void Connection<SocketType>::do_write() {
+    auto self(this->shared_from_this());
     transition_state(ConnState::Writing);
     start_write_timer();
     asio::async_write(socket_, response_.to_buffers(),
@@ -116,19 +119,20 @@ void Connection::do_write() {
                 } else {
                     asio::error_code ignored_ec;
                     socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ignored_ec);
-                    connection_manager_.stop(shared_from_this());
+                    connection_manager_.stop(this->shared_from_this());
                 }
             } else {
                 std::cerr << "Socket write error: " << ec.message() << std::endl;
-                connection_manager_.stop(shared_from_this());
+                connection_manager_.stop(this->shared_from_this());
             }
         });
 }
 
 // --- Timeout and state helpers ---
-void Connection::start_idle_timer() {
+template <typename SocketType>
+void Connection<SocketType>::start_idle_timer() {
     timer_.expires_after(std::chrono::milliseconds(idle_timeout_ms_));
-    auto self(shared_from_this());
+    auto self(this->shared_from_this());
     timer_.async_wait([this, self](const asio::error_code& ec) {
         if (!ec && state_ == ConnState::Idle) {
             std::cerr << "Idle timeout, closing connection." << std::endl;
@@ -138,9 +142,10 @@ void Connection::start_idle_timer() {
     });
 }
 
-void Connection::start_read_timer() {
+template <typename SocketType>
+void Connection<SocketType>::start_read_timer() {
     timer_.expires_after(std::chrono::milliseconds(read_timeout_ms_));
-    auto self(shared_from_this());
+    auto self(this->shared_from_this());
     timer_.async_wait([this, self](const asio::error_code& ec) {
         if (!ec && state_ == ConnState::Reading) {
             std::cerr << "Read timeout, closing connection." << std::endl;
@@ -150,9 +155,10 @@ void Connection::start_read_timer() {
     });
 }
 
-void Connection::start_write_timer() {
+template <typename SocketType>
+void Connection<SocketType>::start_write_timer() {
     timer_.expires_after(std::chrono::milliseconds(write_timeout_ms_));
-    auto self(shared_from_this());
+    auto self(this->shared_from_this());
     timer_.async_wait([this, self](const asio::error_code& ec) {
         if (!ec && state_ == ConnState::Writing) {
             std::cerr << "Write timeout, closing connection." << std::endl;
@@ -162,27 +168,33 @@ void Connection::start_write_timer() {
     });
 }
 
-void Connection::transition_state(ConnState new_state) {
+template <typename SocketType>
+void Connection<SocketType>::transition_state(ConnState new_state) {
     state_ = new_state;
 }
 
-ConnState Connection::get_state() const {
+template <typename SocketType>
+ConnState Connection<SocketType>::get_state() const {
     return state_;
 }
 
-void Connection::set_keep_alive(bool enabled) {
+template <typename SocketType>
+void Connection<SocketType>::set_keep_alive(bool enabled) {
     keep_alive_ = enabled;
 }
 
-void Connection::set_idle_timeout(size_t ms) {
+template <typename SocketType>
+void Connection<SocketType>::set_idle_timeout(size_t ms) {
     idle_timeout_ms_ = ms;
 }
 
-void Connection::set_read_timeout(size_t ms) {
+template <typename SocketType>
+void Connection<SocketType>::set_read_timeout(size_t ms) {
     read_timeout_ms_ = ms;
 }
 
-void Connection::set_write_timeout(size_t ms) {
+template <typename SocketType>
+void Connection<SocketType>::set_write_timeout(size_t ms) {
     write_timeout_ms_ = ms;
 }
 
