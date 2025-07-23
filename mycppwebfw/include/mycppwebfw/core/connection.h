@@ -19,13 +19,14 @@ enum class ConnState {
     Closed
 };
 
-class Connection : public std::enable_shared_from_this<Connection> {
+template <typename SocketType>
+class Connection : public std::enable_shared_from_this<Connection<SocketType>> {
     friend class ConnectionLifecycle_MultipleRequestsWithKeepAlive_Test;
 public:
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
 
-    explicit Connection(asio::ip::tcp::socket socket, ConnectionManager& manager);
+    explicit Connection(SocketType socket, ConnectionManager& manager);
 
     void start();
     void stop();
@@ -48,7 +49,7 @@ private:
     void start_read_timer();
     void start_write_timer();
 
-    asio::ip::tcp::socket socket_;
+    SocketType socket_;
     ConnectionManager& connection_manager_;
 
     std::shared_ptr<std::vector<char>> buffer_;
@@ -69,3 +70,5 @@ private:
 
 } // namespace core
 } // namespace mycppwebfw
+
+#include "/app/mycppwebfw/src/core/connection.tpp"
