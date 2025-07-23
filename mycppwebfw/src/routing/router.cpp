@@ -16,10 +16,46 @@ Router::~Router()
 {
 }
 
+RouteGroup::RouteGroup(const std::string& prefix, Router* router, const std::vector<HttpHandler>& middlewares)
+    : prefix(prefix), router(router), middlewares(middlewares)
+{
+}
+
+void RouteGroup::add_route(const std::string& method, const std::string& path,
+                           HttpHandler handler,
+                           const std::vector<HttpHandler>& route_middlewares,
+                           const std::string& name)
+{
+    std::vector<HttpHandler> all_middlewares = middlewares;
+    all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(), route_middlewares.end());
+    router->add_route(method, prefix + path, handler, all_middlewares, name);
+}
+
+void RouteGroup::group(const std::string& new_prefix,
+                          const std::vector<HttpHandler>& group_middlewares,
+                          const std::function<void(RouteGroup&)>& group_routes)
+{
+    std::vector<HttpHandler> all_middlewares = middlewares;
+    all_middlewares.insert(all_middlewares.end(), group_middlewares.begin(), group_middlewares.end());
+    RouteGroup new_group(prefix + new_prefix, router, all_middlewares);
+    group_routes(new_group);
+}
+
 void Router::add_route(const std::string& method, const std::string& path,
                        HttpHandler handler,
-                       const std::vector<HttpHandler>& middlewares)
+                       const std::vector<HttpHandler>& middlewares,
+                       const std::string& name)
 {
+    if (!name.empty()) {
+        if (named_routes.count(name)) {
+            throw std::runtime_error("Route name '" + name + "' is already defined.");
+        }
+        named_routes[name] = path;
+        mycppwebfw::utils::Logger::log(
+            mycppwebfw::utils::LogLevel::DEBUG,
+            "Registered route '" + path + "' with name '" + name + "'.");
+    }
+
     if (trees.find(method) == trees.end())
     {
         trees[method] = std::make_shared<TrieNode>("", NodeType::STATIC);
@@ -81,6 +117,59 @@ void Router::add_route(const std::string& method, const std::string& path,
     }
     current->handler = handler;
     current->middlewares = middlewares;
+}
+
+void Router::group(const std::string& prefix,
+                   const std::function<void(RouteGroup&)>& group_routes)
+{
+    mycppwebfw::utils::Logger::log(
+        mycppwebfw::utils::LogLevel::DEBUG,
+        "Creating route group with prefix '" + prefix + "'.");
+    RouteGroup route_group(prefix, this);
+    group_routes(route_group);
+}
+
+void Router::group(const std::string& prefix,
+                     const std::vector<HttpHandler>& middlewares,
+                     const std::function<void(RouteGroup&)>& group_routes)
+{
+    mycppwebfw::utils::Logger::log(
+        mycppwebfw::utils::LogLevel::DEBUG,
+        "Creating route group with prefix '" + prefix + "' and " + std::to_string(middlewares.size()) + " middlewares.");
+    RouteGroup route_group(prefix, this, middlewares);
+    group_routes(route_group);
+}
+
+std::string
+Router::url_for(const std::string& name,
+                const std::unordered_map<std::string, std::string>& params)
+{
+    if (named_routes.find(name) == named_routes.end())
+    {
+        mycppwebfw::utils::Logger::log(
+            mycppwebfw::utils::LogLevel::WARNING,
+            "Route with name '" + name + "' not found.");
+        return "";
+    }
+    std::string path = named_routes[name];
+    mycppwebfw::utils::Logger::log(
+        mycppwebfw::utils::LogLevel::DEBUG,
+        "Generating URL for named route '" + name + "' with path '" + path + "'.");
+
+    for (const auto& [key, value] : params)
+    {
+        std::string placeholder = ":" + key;
+        size_t pos = path.find(placeholder);
+        if (pos != std::string::npos)
+        {
+            path.replace(pos, placeholder.length(), value);
+        } else {
+            mycppwebfw::utils::Logger::log(
+                mycppwebfw::utils::LogLevel::WARNING,
+                "Parameter '" + key + "' not found in route path for '" + name + "'.");
+        }
+    }
+    return path;
 }
 
 Router::MatchResult
