@@ -26,6 +26,8 @@ struct TrieNode {
     std::unordered_map<std::string, std::shared_ptr<TrieNode>> children;
     HttpHandler handler = nullptr;
     bool is_wildcard = false;
+    bool is_optional = false;
+    std::string default_value;
 
     TrieNode(const std::string& part, NodeType type) : part(part), type(type) {}
 };
