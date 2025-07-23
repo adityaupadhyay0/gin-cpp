@@ -1,72 +1,163 @@
 #include "mycppwebfw/routing/router.h"
-#include "mycppwebfw/routing/route_matcher.h"
 #include <sstream>
+#include "mycppwebfw/routing/route_matcher.h"
+#include "utils/logger.h"
 
-namespace mycppwebfw {
-namespace routing {
+namespace mycppwebfw
+{
+namespace routing
+{
 
-Router::Router() {}
+Router::Router()
+{
+}
 
-Router::~Router() {}
+Router::~Router()
+{
+}
 
-void Router::add_route(const std::string& method, const std::string& path, HttpHandler handler) {
-    if (trees.find(method) == trees.end()) {
+void Router::add_route(const std::string& method, const std::string& path,
+                       HttpHandler handler,
+                       const std::vector<HttpHandler>& middlewares)
+{
+    if (trees.find(method) == trees.end())
+    {
         trees[method] = std::make_shared<TrieNode>("", NodeType::STATIC);
     }
     std::shared_ptr<TrieNode> root = trees[method];
     std::stringstream ss(path);
     std::string segment;
     std::vector<std::string> segments;
-    while (std::getline(ss, segment, '/')) {
-        if (!segment.empty()) {
+    while (std::getline(ss, segment, '/'))
+    {
+        if (!segment.empty())
+        {
             segments.push_back(segment);
         }
     }
 
     std::shared_ptr<TrieNode> current = root;
-    for (const auto& seg : segments) {
+    for (const auto& seg : segments)
+    {
         NodeType type = NodeType::STATIC;
         std::string part = seg;
         bool is_optional = false;
         std::string default_value;
 
-        if (seg.front() == ':') {
+        if (seg.front() == ':')
+        {
             type = NodeType::PARAMETER;
             part = seg.substr(1);
-            if (part.back() == '?') {
+            if (part.back() == '?')
+            {
                 is_optional = true;
                 part.pop_back();
             }
             size_t equals_pos = part.find('=');
-            if (equals_pos != std::string::npos) {
+            if (equals_pos != std::string::npos)
+            {
                 default_value = part.substr(equals_pos + 1);
                 part = part.substr(0, equals_pos);
                 is_optional = true;
             }
-        } else if (seg.front() == '*') {
+        }
+        else if (seg.front() == '*')
+        {
             type = NodeType::WILDCARD;
             part = seg.substr(1);
             current->is_wildcard = true;
         }
 
-        if (current->children.find(part) == current->children.end()) {
+        if (current->children.find(part) == current->children.end())
+        {
             current->children[part] = std::make_shared<TrieNode>(part, type);
         }
         current = current->children[part];
-        if (type == NodeType::PARAMETER) {
+        if (type == NodeType::PARAMETER)
+        {
             current->is_optional = is_optional;
             current->default_value = default_value;
         }
     }
     current->handler = handler;
+    current->middlewares = middlewares;
 }
 
-HttpHandler Router::match_route(const std::string& method, const std::string& path, std::unordered_map<std::string, std::string>& params) {
-    if (trees.find(method) == trees.end()) {
-        return nullptr;
+Router::MatchResult
+Router::match_route(http::Request& request,
+                    std::unordered_map<std::string, std::string>& params)
+{
+    std::string original_method = request.get_method();
+    std::string effective_method = original_method;
+    auto override_header = request.get_header("X-HTTP-Method-Override");
+    if (!override_header.empty())
+    {
+        effective_method = override_header;
+        mycppwebfw::utils::Logger::log(
+            mycppwebfw::utils::LogLevel::DEBUG,
+            "Method overridden by X-HTTP-Method-Override header to: " +
+                effective_method);
     }
-    return RouteMatcher::match(trees[method], path, params);
+    else
+    {
+        auto query_params = request.get_query_params();
+        if (query_params.count("_method"))
+        {
+            effective_method = query_params.at("_method");
+            mycppwebfw::utils::Logger::log(
+                mycppwebfw::utils::LogLevel::DEBUG,
+                "Method overridden by _method query parameter to: " +
+                    effective_method);
+        }
+    }
+
+    mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::INFO,
+                       "Matching route: " + effective_method + " " +
+                           request.get_path());
+
+    MatchResult result;
+    if (trees.find(effective_method) != trees.end())
+    {
+        auto node = RouteMatcher::match(trees[effective_method],
+                                        request.get_path(), params);
+        if (node)
+        {
+            mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::INFO, "Route matched");
+            result.handler = node->handler;
+            result.middlewares = node->middlewares;
+            return result;
+        }
+    }
+
+    mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING,
+                       "Route not found for method: " + effective_method);
+
+    for (const auto& [tree_method, tree] : trees)
+    {
+        if (tree_method != effective_method)
+        {
+            std::unordered_map<std::string, std::string> temp_params;
+            if (RouteMatcher::match(tree, request.get_path(), temp_params))
+            {
+                result.allowed_methods.push_back(tree_method);
+            }
+        }
+    }
+
+    if (!result.allowed_methods.empty())
+    {
+        mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING,
+                           "Path found for other methods, returning 405");
+        result.handler = [](http::Request&, http::Response& res)
+        { res.status = http::Response::StatusCode::bad_request; };
+    }
+    else
+    {
+        mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING, "No route found for path");
+    }
+
+    return result;
 }
 
-} // namespace routing
-} // namespace mycppwebfw
+}  // namespace routing
+}  // namespace mycppwebfw

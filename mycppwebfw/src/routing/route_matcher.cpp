@@ -1,30 +1,44 @@
 #include "mycppwebfw/routing/route_matcher.h"
 #include <sstream>
 
-namespace mycppwebfw {
-namespace routing {
+namespace mycppwebfw
+{
+namespace routing
+{
 
-HttpHandler RouteMatcher::match(const std::shared_ptr<TrieNode>& root, const std::string& path, std::unordered_map<std::string, std::string>& params) {
+std::shared_ptr<TrieNode>
+RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
+                    const std::string& path,
+                    std::unordered_map<std::string, std::string>& params)
+{
     std::stringstream ss(path);
     std::string segment;
     std::vector<std::string> segments;
-    while (std::getline(ss, segment, '/')) {
-        if (!segment.empty()) {
+    while (std::getline(ss, segment, '/'))
+    {
+        if (!segment.empty())
+        {
             segments.push_back(segment);
         }
     }
 
     std::shared_ptr<TrieNode> current = root;
     size_t segment_index = 0;
-    while (segment_index < segments.size()) {
+    while (segment_index < segments.size())
+    {
         const auto& seg = segments[segment_index];
-        if (current->children.find(seg) != current->children.end()) {
+        if (current->children.find(seg) != current->children.end())
+        {
             current = current->children[seg];
             segment_index++;
-        } else {
+        }
+        else
+        {
             bool found = false;
-            for (auto const& [key, val] : current->children) {
-                if (val->type == NodeType::PARAMETER) {
+            for (auto const& [key, val] : current->children)
+            {
+                if (val->type == NodeType::PARAMETER)
+                {
                     params[val->part] = seg;
                     current = val;
                     found = true;
@@ -32,37 +46,48 @@ HttpHandler RouteMatcher::match(const std::shared_ptr<TrieNode>& root, const std
                     break;
                 }
             }
-            if (found) continue;
+            if (found)
+                continue;
 
-            for (auto const& [key, val] : current->children) {
-                if (val->type == NodeType::WILDCARD) {
+            for (auto const& [key, val] : current->children)
+            {
+                if (val->type == NodeType::WILDCARD)
+                {
                     std::string remaining_path;
-                    for (size_t i = segment_index; i < segments.size(); ++i) {
+                    for (size_t i = segment_index; i < segments.size(); ++i)
+                    {
                         remaining_path += segments[i];
-                        if (i < segments.size() - 1) {
+                        if (i < segments.size() - 1)
+                        {
                             remaining_path += "/";
                         }
                     }
                     params[val->part] = remaining_path;
-                    return val->handler;
+                    return val;
                 }
             }
             return nullptr;
         }
     }
 
-    if (current && current->handler) {
-        return current->handler;
+    if (current && current->handler)
+    {
+        return current;
     }
 
-    if (current) {
-        for (auto const& [key, val] : current->children) {
-            if (val->is_optional) {
-                if (!val->default_value.empty()) {
+    if (current)
+    {
+        for (auto const& [key, val] : current->children)
+        {
+            if (val->is_optional)
+            {
+                if (!val->default_value.empty())
+                {
                     params[val->part] = val->default_value;
                 }
-                if (val->handler) {
-                    return val->handler;
+                if (val->handler)
+                {
+                    return val;
                 }
             }
         }
@@ -71,5 +96,5 @@ HttpHandler RouteMatcher::match(const std::shared_ptr<TrieNode>& root, const std
     return nullptr;
 }
 
-} // namespace routing
-} // namespace mycppwebfw
+}  // namespace routing
+}  // namespace mycppwebfw
