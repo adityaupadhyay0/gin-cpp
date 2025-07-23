@@ -27,9 +27,22 @@ void Router::add_route(const std::string& method, const std::string& path, HttpH
     for (const auto& seg : segments) {
         NodeType type = NodeType::STATIC;
         std::string part = seg;
+        bool is_optional = false;
+        std::string default_value;
+
         if (seg.front() == ':') {
             type = NodeType::PARAMETER;
             part = seg.substr(1);
+            if (part.back() == '?') {
+                is_optional = true;
+                part.pop_back();
+            }
+            size_t equals_pos = part.find('=');
+            if (equals_pos != std::string::npos) {
+                default_value = part.substr(equals_pos + 1);
+                part = part.substr(0, equals_pos);
+                is_optional = true;
+            }
         } else if (seg.front() == '*') {
             type = NodeType::WILDCARD;
             part = seg.substr(1);
@@ -40,6 +53,10 @@ void Router::add_route(const std::string& method, const std::string& path, HttpH
             current->children[part] = std::make_shared<TrieNode>(part, type);
         }
         current = current->children[part];
+        if (type == NodeType::PARAMETER) {
+            current->is_optional = is_optional;
+            current->default_value = default_value;
+        }
     }
     current->handler = handler;
 }
