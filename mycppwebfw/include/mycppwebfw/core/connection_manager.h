@@ -7,6 +7,7 @@
 namespace mycppwebfw {
 namespace core {
 
+template <typename ConnectionType>
 class ConnectionManager {
 public:
     ConnectionManager(const ConnectionManager&) = delete;
@@ -14,13 +15,15 @@ public:
 
     ConnectionManager();
 
-    void start(std::shared_ptr<Connection> c);
-    void stop(std::shared_ptr<Connection> c);
+    void start(std::shared_ptr<ConnectionType> c);
+    void stop(std::shared_ptr<ConnectionType> c);
     void stop_all();
 
 private:
-    std::set<std::shared_ptr<Connection>> connections_;
+    std::set<std::shared_ptr<ConnectionType>> connections_;
 };
 
 } // namespace core
 } // namespace mycppwebfw
+
+#include "../../src/core/connection_manager.tpp"
