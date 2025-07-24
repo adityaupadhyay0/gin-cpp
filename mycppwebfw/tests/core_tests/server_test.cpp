@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "mycppwebfw/core/server.h"
+#include "logging/logger.h"
 #include <thread>
 #include "asio.hpp"
 
@@ -39,6 +40,7 @@ TEST_F(ServerTest, SignalHandlingShutdown) {
 }
 
 TEST_F(ServerTest, SimpleRequest) {
+    LOG_INFO("Starting SimpleRequest test");
     asio::io_context io_context;
     asio::ip::tcp::socket socket(io_context);
     asio::ip::tcp::resolver resolver(io_context);
@@ -67,4 +69,5 @@ TEST_F(ServerTest, SimpleRequest) {
     } catch (const std::exception& e) {
         FAIL() << "Test client caught exception: " << e.what();
     }
+    LOG_INFO("Finished SimpleRequest test");
 }

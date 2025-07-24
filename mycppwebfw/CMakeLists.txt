@@ -54,6 +54,10 @@ target_include_directories(mycppwebfw INTERFACE
   "${nlohmann_json_SOURCE_DIR}/include"
 )
 
+target_include_directories(mycppwebfw INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
 if(OpenSSL_FOUND)
   target_link_libraries(mycppwebfw INTERFACE OpenSSL::SSL)
 endif()
