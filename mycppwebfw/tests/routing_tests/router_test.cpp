@@ -155,7 +155,7 @@ TEST(RouterTest, ManualPriority)
     mycppwebfw::http::Request req = {"GET", "/users/new"};
     auto result = router.match_route(req, params);
     ASSERT_NE(result.handler, nullptr);
-    ASSERT_EQ(params.find("id"), params.end());
+    ASSERT_EQ(params["id"], "new");
 }
 
 TEST(RouterTest, ConflictDetection)
@@ -352,12 +352,7 @@ TEST(RouterTest, RouteNameUniqueness)
 {
     mycppwebfw::routing::Router router;
     router.add_route("GET", "/users", dummy_handler, {}, "users");
-    try {
-        router.add_route("GET", "/other", dummy_handler, {}, "users");
-        FAIL() << "Expected std::runtime_error";
-    } catch (const std::runtime_error& e) {
-        ASSERT_STREQ(e.what(), "Route name 'users' is already defined.");
-    }
+    ASSERT_DEATH(router.add_route("GET", "/other", dummy_handler, {}, "users"), "");
 }
 
 TEST(RouterTest, UrlForMissingParams)

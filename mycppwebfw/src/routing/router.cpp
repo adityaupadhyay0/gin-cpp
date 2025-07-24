@@ -1,4 +1,4 @@
-#include "logging/logger.h"
+#include "mycppwebfw/utils/logger.h"
 #include "mycppwebfw/routing/router.h"
 #include <sstream>
 #include "mycppwebfw/routing/route_matcher.h"
@@ -71,9 +71,9 @@ void Router::add_route(const std::string& method, const std::string& path,
     }
 
     std::shared_ptr<TrieNode> current = root;
-    NodeType type = NodeType::STATIC;
     for (const auto& seg : segments)
     {
+        NodeType type = NodeType::STATIC;
         std::string part = seg;
         bool is_optional = false;
         std::string default_value;
@@ -121,11 +121,11 @@ void Router::add_route(const std::string& method, const std::string& path,
     if (priority != 0) {
         current->priority = priority;
     } else {
-        if (type == NodeType::STATIC) {
+        if (current->type == NodeType::STATIC) {
             current->priority = 3;
-        } else if (type == NodeType::PARAMETER) {
+        } else if (current->type == NodeType::PARAMETER) {
             current->priority = 2;
-        } else if (type == NodeType::WILDCARD) {
+        } else if (current->type == NodeType::WILDCARD) {
             current->priority = 1;
         }
     }
