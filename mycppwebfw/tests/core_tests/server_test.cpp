@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "mycppwebfw/core/server.h"
+#include "logging/logger.h"
 #include <thread>
 #include "asio.hpp"
 
@@ -23,6 +24,7 @@ protected:
     void TearDown() override {
         // The server is stopped by the test, so we just need to join the thread
         if (server_thread_.joinable()) {
+            raise(SIGINT);
             server_thread_.join();
         }
     }
@@ -38,6 +40,7 @@ TEST_F(ServerTest, SignalHandlingShutdown) {
 }
 
 TEST_F(ServerTest, SimpleRequest) {
+    LOG_INFO("Starting SimpleRequest test");
     asio::io_context io_context;
     asio::ip::tcp::socket socket(io_context);
     asio::ip::tcp::resolver resolver(io_context);
@@ -45,7 +48,7 @@ TEST_F(ServerTest, SimpleRequest) {
     try {
         asio::connect(socket, resolver.resolve("127.0.0.1", "8080"));
 
-        std::string request = "GET /hello HTTP/1.1\r\n\r\n";
+        std::string request = "GET /hello HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
         asio::write(socket, asio::buffer(request));
 
         asio::streambuf response_buf;
@@ -66,4 +69,5 @@ TEST_F(ServerTest, SimpleRequest) {
     } catch (const std::exception& e) {
         FAIL() << "Test client caught exception: " << e.what();
     }
+    LOG_INFO("Finished SimpleRequest test");
 }

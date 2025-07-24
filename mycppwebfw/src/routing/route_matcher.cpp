@@ -1,43 +1,140 @@
 #include "mycppwebfw/routing/route_matcher.h"
 #include <sstream>
 
-namespace mycppwebfw {
-namespace routing {
+namespace mycppwebfw
+{
+namespace routing
+{
 
-HttpHandler RouteMatcher::match(const std::shared_ptr<TrieNode>& root, const std::string& path, std::unordered_map<std::string, std::string>& params) {
+std::shared_ptr<TrieNode>
+RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
+                    const std::string& path,
+                    std::unordered_map<std::string, std::string>& params)
+{
     std::stringstream ss(path);
     std::string segment;
     std::vector<std::string> segments;
-    while (std::getline(ss, segment, '/')) {
-        if (!segment.empty()) {
+    while (std::getline(ss, segment, '/'))
+    {
+        if (!segment.empty())
+        {
             segments.push_back(segment);
         }
     }
 
-    std::shared_ptr<TrieNode> current = root;
-    for (const auto& seg : segments) {
-        if (current->children.find(seg) != current->children.end()) {
-            current = current->children[seg];
-        } else {
-            bool found = false;
+    std::vector<std::shared_ptr<TrieNode>> matches;
+    std::function<void(std::shared_ptr<TrieNode>, size_t, std::unordered_map<std::string, std::string>)> find_matches =
+        [&](std::shared_ptr<TrieNode> current, size_t segment_index, std::unordered_map<std::string, std::string> current_params) {
+        if (segment_index == segments.size()) {
+            if (current->handler) {
+                matches.push_back(current);
+            }
             for (auto const& [key, val] : current->children) {
-                if (val->type == NodeType::PARAMETER) {
-                    params[key] = seg;
-                    current = val;
-                    found = true;
-                    break;
-                } else if (val->type == NodeType::WILDCARD) {
-                    params[key] = path.substr(path.find(seg));
-                    return val->handler;
+                if (val->is_optional) {
+                    if (val->handler) {
+                        matches.push_back(val);
+                    }
                 }
             }
-            if (!found) {
-                return nullptr;
+            return;
+        }
+
+        const auto& seg = segments[segment_index];
+        if (current->children.find(seg) != current->children.end()) {
+            find_matches(current->children[seg], segment_index + 1, current_params);
+        }
+
+        for (auto const& [key, val] : current->children) {
+            if (val->type == NodeType::PARAMETER) {
+                auto next_params = current_params;
+                next_params[val->part] = seg;
+                find_matches(val, segment_index + 1, next_params);
+            } else if (val->type == NodeType::WILDCARD) {
+                std::string remaining_path;
+                for (size_t i = segment_index; i < segments.size(); ++i) {
+                    remaining_path += segments[i];
+                    if (i < segments.size() - 1) {
+                        remaining_path += "/";
+                    }
+                }
+                auto next_params = current_params;
+                next_params[val->part] = remaining_path;
+                matches.push_back(val);
             }
         }
+    };
+
+    find_matches(root, 0, {});
+
+    if (matches.empty()) {
+        return nullptr;
     }
-    return current->handler;
+
+    std::sort(matches.begin(), matches.end(), [](const auto& a, const auto& b) {
+        return a->priority > b->priority;
+    });
+
+    auto best_match = matches[0];
+    params.clear();
+
+    // Recalculate params for the best match
+    std::shared_ptr<TrieNode> current = root;
+    size_t segment_index = 0;
+    while (segment_index < segments.size())
+    {
+        const auto& seg = segments[segment_index];
+        if (current->children.find(seg) != current->children.end())
+        {
+            current = current->children[seg];
+            segment_index++;
+        }
+        else
+        {
+            bool found = false;
+            for (auto const& [key, val] : current->children)
+            {
+                if (val->type == NodeType::PARAMETER)
+                {
+                    params[val->part] = seg;
+                    current = val;
+                    found = true;
+                    segment_index++;
+                    break;
+                }
+            }
+            if (found)
+                continue;
+
+            for (auto const& [key, val] : current->children)
+            {
+                if (val->type == NodeType::WILDCARD)
+                {
+                    std::string remaining_path;
+                    for (size_t i = segment_index; i < segments.size(); ++i)
+                    {
+                        remaining_path += segments[i];
+                        if (i < segments.size() - 1)
+                        {
+                            remaining_path += "/";
+                        }
+                    }
+                    params[val->part] = remaining_path;
+                    return val;
+                }
+            }
+            return nullptr;
+        }
+    }
+
+    if (best_match->is_optional && !best_match->default_value.empty()) {
+        if (params.find(best_match->part) == params.end()) {
+            params[best_match->part] = best_match->default_value;
+        }
+    }
+
+
+    return best_match;
 }
 
-} // namespace routing
-} // namespace mycppwebfw
+}  // namespace routing
+}  // namespace mycppwebfw

@@ -49,8 +49,13 @@ add_library(mycppwebfw INTERFACE)
 
 target_include_directories(mycppwebfw INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
   "${asio_SOURCE_DIR}/asio/include"
   "${nlohmann_json_SOURCE_DIR}/include"
+)
+
+target_include_directories(mycppwebfw INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 if(OpenSSL_FOUND)

@@ -11,7 +11,7 @@ template <typename SocketType>
 std::shared_ptr<BufferPool<>> Connection<SocketType>::buffer_pool_ = std::make_shared<BufferPool<>>(8192, 128);
 
 template <typename SocketType>
-Connection<SocketType>::Connection(SocketType socket, ConnectionManager& manager)
+Connection<SocketType>::Connection(SocketType socket, ConnectionManager<Connection<SocketType>>& manager)
     : socket_(std::move(socket)),
       connection_manager_(manager),
       timer_(socket_.get_executor()) {
