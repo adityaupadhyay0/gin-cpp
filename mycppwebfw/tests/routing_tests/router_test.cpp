@@ -1,3 +1,4 @@
+#include "mycppwebfw/utils/logger.h"
 #include "gtest/gtest.h"
 #include "mycppwebfw/routing/router.h"
 #include "mycppwebfw/http/request.h"
@@ -119,6 +120,52 @@ TEST(RouterTest, WildcardPrecedence)
     auto result = router.match_route(req, params);
     ASSERT_NE(result.handler, nullptr);
     ASSERT_EQ(params.size(), 0);
+}
+
+TEST(RouterTest, StaticVsParameterized)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/users/new", dummy_handler);
+    router.add_route("GET", "/users/:id", dummy_handler);
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/users/new"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
+    ASSERT_EQ(params.size(), 0);
+}
+
+TEST(RouterTest, ParameterizedVsWildcard)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/users/:id", dummy_handler);
+    router.add_route("GET", "/users/*path", dummy_handler);
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/users/123"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
+    ASSERT_EQ(params["id"], "123");
+}
+
+TEST(RouterTest, ManualPriority)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/users/new", dummy_handler, {}, "", 10);
+    router.add_route("GET", "/users/:id", dummy_handler, {}, "", 20);
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/users/new"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
+    ASSERT_EQ(params["id"], "new");
+}
+
+TEST(RouterTest, ConflictDetection)
+{
+    mycppwebfw::routing::Router router;
+    testing::internal::CaptureStdout();
+    router.add_route("GET", "/users", dummy_handler);
+    router.add_route("GET", "/users", dummy_handler);
+    std::string output = testing::internal::GetCapturedStdout();
+    ASSERT_NE(output.find("Route conflict"), std::string::npos);
 }
 
 TEST(RouterTest, ParameterTypeConversion)

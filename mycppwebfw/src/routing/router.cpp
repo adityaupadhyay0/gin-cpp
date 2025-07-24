@@ -1,7 +1,7 @@
+#include "mycppwebfw/utils/logger.h"
 #include "mycppwebfw/routing/router.h"
 #include <sstream>
 #include "mycppwebfw/routing/route_matcher.h"
-#include "utils/logger.h"
 
 namespace mycppwebfw
 {
@@ -24,11 +24,11 @@ RouteGroup::RouteGroup(const std::string& prefix, Router* router, const std::vec
 void RouteGroup::add_route(const std::string& method, const std::string& path,
                            HttpHandler handler,
                            const std::vector<HttpHandler>& route_middlewares,
-                           const std::string& name)
+                           const std::string& name, int priority)
 {
     std::vector<HttpHandler> all_middlewares = middlewares;
     all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(), route_middlewares.end());
-    router->add_route(method, prefix + path, handler, all_middlewares, name);
+    router->add_route(method, prefix + path, handler, all_middlewares, name, priority);
 }
 
 void RouteGroup::group(const std::string& new_prefix,
@@ -44,16 +44,14 @@ void RouteGroup::group(const std::string& new_prefix,
 void Router::add_route(const std::string& method, const std::string& path,
                        HttpHandler handler,
                        const std::vector<HttpHandler>& middlewares,
-                       const std::string& name)
+                       const std::string& name, int priority)
 {
     if (!name.empty()) {
         if (named_routes.count(name)) {
             throw std::runtime_error("Route name '" + name + "' is already defined.");
         }
         named_routes[name] = path;
-        mycppwebfw::utils::Logger::log(
-            mycppwebfw::utils::LogLevel::DEBUG,
-            "Registered route '" + path + "' with name '" + name + "'.");
+        LOG_DEBUG("Registered route '" + path + "' with name '" + name + "'.");
     }
 
     if (trees.find(method) == trees.end())
@@ -115,16 +113,28 @@ void Router::add_route(const std::string& method, const std::string& path,
             current->default_value = default_value;
         }
     }
+    if (current->handler != nullptr) {
+        LOG_WARNING("Route conflict: " + path + " conflicts with an existing route.");
+    }
     current->handler = handler;
     current->middlewares = middlewares;
+    if (priority != 0) {
+        current->priority = priority;
+    } else {
+        if (current->type == NodeType::STATIC) {
+            current->priority = 3;
+        } else if (current->type == NodeType::PARAMETER) {
+            current->priority = 2;
+        } else if (current->type == NodeType::WILDCARD) {
+            current->priority = 1;
+        }
+    }
 }
 
 void Router::group(const std::string& prefix,
                    const std::function<void(RouteGroup&)>& group_routes)
 {
-    mycppwebfw::utils::Logger::log(
-        mycppwebfw::utils::LogLevel::DEBUG,
-        "Creating route group with prefix '" + prefix + "'.");
+    LOG_DEBUG("Creating route group with prefix '" + prefix + "'.");
     RouteGroup route_group(prefix, this);
     group_routes(route_group);
 }
@@ -133,9 +143,7 @@ void Router::group(const std::string& prefix,
                      const std::vector<HttpHandler>& middlewares,
                      const std::function<void(RouteGroup&)>& group_routes)
 {
-    mycppwebfw::utils::Logger::log(
-        mycppwebfw::utils::LogLevel::DEBUG,
-        "Creating route group with prefix '" + prefix + "' and " + std::to_string(middlewares.size()) + " middlewares.");
+    LOG_DEBUG("Creating route group with prefix '" + prefix + "' and " + std::to_string(middlewares.size()) + " middlewares.");
     RouteGroup route_group(prefix, this, middlewares);
     group_routes(route_group);
 }
@@ -146,15 +154,11 @@ Router::url_for(const std::string& name,
 {
     if (named_routes.find(name) == named_routes.end())
     {
-        mycppwebfw::utils::Logger::log(
-            mycppwebfw::utils::LogLevel::WARNING,
-            "Route with name '" + name + "' not found.");
+        LOG_WARNING("Route with name '" + name + "' not found.");
         return "";
     }
     std::string path = named_routes[name];
-    mycppwebfw::utils::Logger::log(
-        mycppwebfw::utils::LogLevel::DEBUG,
-        "Generating URL for named route '" + name + "' with path '" + path + "'.");
+    LOG_DEBUG("Generating URL for named route '" + name + "' with path '" + path + "'.");
 
     for (const auto& [key, value] : params)
     {
@@ -164,9 +168,7 @@ Router::url_for(const std::string& name,
         {
             path.replace(pos, placeholder.length(), value);
         } else {
-            mycppwebfw::utils::Logger::log(
-                mycppwebfw::utils::LogLevel::WARNING,
-                "Parameter '" + key + "' not found in route path for '" + name + "'.");
+            LOG_WARNING("Parameter '" + key + "' not found in route path for '" + name + "'.");
         }
     }
     return path;
@@ -182,9 +184,7 @@ Router::match_route(http::Request& request,
     if (!override_header.empty())
     {
         effective_method = override_header;
-        mycppwebfw::utils::Logger::log(
-            mycppwebfw::utils::LogLevel::DEBUG,
-            "Method overridden by X-HTTP-Method-Override header to: " +
+        LOG_DEBUG("Method overridden by X-HTTP-Method-Override header to: " +
                 effective_method);
     }
     else
@@ -193,15 +193,12 @@ Router::match_route(http::Request& request,
         if (query_params.count("_method"))
         {
             effective_method = query_params.at("_method");
-            mycppwebfw::utils::Logger::log(
-                mycppwebfw::utils::LogLevel::DEBUG,
-                "Method overridden by _method query parameter to: " +
+            LOG_DEBUG("Method overridden by _method query parameter to: " +
                     effective_method);
         }
     }
 
-    mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::INFO,
-                       "Matching route: " + effective_method + " " +
+    LOG_INFO("Matching route: " + effective_method + " " +
                            request.get_path());
 
     MatchResult result;
@@ -211,15 +208,14 @@ Router::match_route(http::Request& request,
                                         request.get_path(), params);
         if (node)
         {
-            mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::INFO, "Route matched");
+            LOG_INFO("Route matched");
             result.handler = node->handler;
             result.middlewares = node->middlewares;
             return result;
         }
     }
 
-    mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING,
-                       "Route not found for method: " + effective_method);
+    LOG_WARNING("Route not found for method: " + effective_method);
 
     for (const auto& [tree_method, tree] : trees)
     {
@@ -235,14 +231,13 @@ Router::match_route(http::Request& request,
 
     if (!result.allowed_methods.empty())
     {
-        mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING,
-                           "Path found for other methods, returning 405");
+        LOG_WARNING("Path found for other methods, returning 405");
         result.handler = [](http::Request&, http::Response& res)
         { res.status = http::Response::StatusCode::bad_request; };
     }
     else
     {
-        mycppwebfw::utils::Logger::log(mycppwebfw::utils::LogLevel::WARNING, "No route found for path");
+        LOG_WARNING("No route found for path");
     }
 
     return result;

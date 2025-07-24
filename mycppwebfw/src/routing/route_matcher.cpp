@@ -22,6 +22,62 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
         }
     }
 
+    std::vector<std::shared_ptr<TrieNode>> matches;
+    std::function<void(std::shared_ptr<TrieNode>, size_t, std::unordered_map<std::string, std::string>)> find_matches =
+        [&](std::shared_ptr<TrieNode> current, size_t segment_index, std::unordered_map<std::string, std::string> current_params) {
+        if (segment_index == segments.size()) {
+            if (current->handler) {
+                matches.push_back(current);
+            }
+            for (auto const& [key, val] : current->children) {
+                if (val->is_optional) {
+                    if (val->handler) {
+                        matches.push_back(val);
+                    }
+                }
+            }
+            return;
+        }
+
+        const auto& seg = segments[segment_index];
+        if (current->children.find(seg) != current->children.end()) {
+            find_matches(current->children[seg], segment_index + 1, current_params);
+        }
+
+        for (auto const& [key, val] : current->children) {
+            if (val->type == NodeType::PARAMETER) {
+                auto next_params = current_params;
+                next_params[val->part] = seg;
+                find_matches(val, segment_index + 1, next_params);
+            } else if (val->type == NodeType::WILDCARD) {
+                std::string remaining_path;
+                for (size_t i = segment_index; i < segments.size(); ++i) {
+                    remaining_path += segments[i];
+                    if (i < segments.size() - 1) {
+                        remaining_path += "/";
+                    }
+                }
+                auto next_params = current_params;
+                next_params[val->part] = remaining_path;
+                matches.push_back(val);
+            }
+        }
+    };
+
+    find_matches(root, 0, {});
+
+    if (matches.empty()) {
+        return nullptr;
+    }
+
+    std::sort(matches.begin(), matches.end(), [](const auto& a, const auto& b) {
+        return a->priority > b->priority;
+    });
+
+    auto best_match = matches[0];
+    params.clear();
+
+    // Recalculate params for the best match
     std::shared_ptr<TrieNode> current = root;
     size_t segment_index = 0;
     while (segment_index < segments.size())
@@ -70,30 +126,14 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
         }
     }
 
-    if (current && current->handler)
-    {
-        return current;
-    }
-
-    if (current)
-    {
-        for (auto const& [key, val] : current->children)
-        {
-            if (val->is_optional)
-            {
-                if (!val->default_value.empty())
-                {
-                    params[val->part] = val->default_value;
-                }
-                if (val->handler)
-                {
-                    return val;
-                }
-            }
+    if (best_match->is_optional && !best_match->default_value.empty()) {
+        if (params.find(best_match->part) == params.end()) {
+            params[best_match->part] = best_match->default_value;
         }
     }
 
-    return nullptr;
+
+    return best_match;
 }
 
 }  // namespace routing

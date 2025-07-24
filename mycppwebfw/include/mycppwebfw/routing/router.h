@@ -8,6 +8,7 @@
 
 #include "mycppwebfw/http/request.h"
 #include "mycppwebfw/http/response.h"
+#include "mycppwebfw/utils/logger.h"
 
 namespace mycppwebfw
 {
@@ -33,6 +34,7 @@ struct TrieNode
     bool is_wildcard = false;
     bool is_optional = false;
     std::string default_value;
+    int priority = 0;
 
     TrieNode(const std::string& part, NodeType type) : part(part), type(type)
     {
@@ -48,7 +50,7 @@ public:
     void add_route(const std::string& method, const std::string& path,
                    HttpHandler handler,
                    const std::vector<HttpHandler>& middlewares = {},
-                   const std::string& name = "");
+                   const std::string& name = "", int priority = 0);
     void group(const std::string& prefix,
                const std::vector<HttpHandler>& middlewares,
                const std::function<void(RouteGroup&)>& group_routes);
@@ -68,7 +70,7 @@ public:
     void add_route(const std::string& method, const std::string& path,
                    HttpHandler handler,
                    const std::vector<HttpHandler>& middlewares = {},
-                   const std::string& name = "");
+                   const std::string& name = "", int priority = 0);
     void group(const std::string& prefix,
                const std::function<void(RouteGroup&)>& group_routes);
     void group(const std::string& prefix,
