@@ -21,7 +21,8 @@ enum class NodeType
 {
     STATIC,
     PARAMETER,
-    WILDCARD
+    WILDCARD,
+    REGEX
 };
 
 struct TrieNode
@@ -32,8 +33,12 @@ struct TrieNode
     HttpHandler handler = nullptr;
     std::vector<HttpHandler> middlewares;
     bool is_wildcard = false;
+    bool is_catch_all = false;
+    bool is_static_files = false;
+    std::string static_files_base_dir;
     bool is_optional = false;
     std::string default_value;
+    std::string regex_pattern;
     int priority = 0;
 
     TrieNode(const std::string& part, NodeType type) : part(part), type(type)
@@ -46,11 +51,13 @@ class Router;
 class RouteGroup
 {
 public:
-    RouteGroup(const std::string& prefix, Router* router, const std::vector<HttpHandler>& middlewares = {});
+    RouteGroup(const std::string& prefix, Router* router,
+               const std::vector<HttpHandler>& middlewares = {});
     void add_route(const std::string& method, const std::string& path,
                    HttpHandler handler,
                    const std::vector<HttpHandler>& middlewares = {},
                    const std::string& name = "", int priority = 0);
+    void add_static_route(const std::string& path, const std::string& base_dir);
     void group(const std::string& prefix,
                const std::vector<HttpHandler>& middlewares,
                const std::function<void(RouteGroup&)>& group_routes);
@@ -60,6 +67,11 @@ private:
     Router* router;
     std::vector<HttpHandler> middlewares;
 };
+
+namespace devtools
+{
+class RouteInspector;
+}
 
 class Router
 {
@@ -74,8 +86,8 @@ public:
     void group(const std::string& prefix,
                const std::function<void(RouteGroup&)>& group_routes);
     void group(const std::string& prefix,
-                const std::vector<HttpHandler>& middlewares,
-                const std::function<void(RouteGroup&)>& group_routes);
+               const std::vector<HttpHandler>& middlewares,
+               const std::function<void(RouteGroup&)>& group_routes);
 
     struct MatchResult
     {
@@ -92,8 +104,15 @@ public:
     url_for(const std::string& name,
             const std::unordered_map<std::string, std::string>& params = {});
 
+    const std::unordered_map<std::string, std::shared_ptr<TrieNode>>&
+    get_trees() const
+    {
+        return trees;
+    }
+
 private:
     friend class RouteGroup;
+    friend class devtools::RouteInspector;
     std::unordered_map<std::string, std::shared_ptr<TrieNode>> trees;
     std::unordered_map<std::string, std::string> named_routes;
 };

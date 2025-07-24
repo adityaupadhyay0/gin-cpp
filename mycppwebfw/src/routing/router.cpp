@@ -1,7 +1,8 @@
-#include "mycppwebfw/utils/logger.h"
 #include "mycppwebfw/routing/router.h"
 #include <sstream>
 #include "mycppwebfw/routing/route_matcher.h"
+#include "mycppwebfw/src/utils/file_server.h"
+#include "mycppwebfw/utils/logger.h"
 
 namespace mycppwebfw
 {
@@ -16,7 +17,8 @@ Router::~Router()
 {
 }
 
-RouteGroup::RouteGroup(const std::string& prefix, Router* router, const std::vector<HttpHandler>& middlewares)
+RouteGroup::RouteGroup(const std::string& prefix, Router* router,
+                       const std::vector<HttpHandler>& middlewares)
     : prefix(prefix), router(router), middlewares(middlewares)
 {
 }
@@ -27,18 +29,54 @@ void RouteGroup::add_route(const std::string& method, const std::string& path,
                            const std::string& name, int priority)
 {
     std::vector<HttpHandler> all_middlewares = middlewares;
-    all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(), route_middlewares.end());
-    router->add_route(method, prefix + path, handler, all_middlewares, name, priority);
+    all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(),
+                           route_middlewares.end());
+    router->add_route(method, prefix + path, handler, all_middlewares, name,
+                      priority);
 }
 
 void RouteGroup::group(const std::string& new_prefix,
-                          const std::vector<HttpHandler>& group_middlewares,
-                          const std::function<void(RouteGroup&)>& group_routes)
+                       const std::vector<HttpHandler>& group_middlewares,
+                       const std::function<void(RouteGroup&)>& group_routes)
 {
     std::vector<HttpHandler> all_middlewares = middlewares;
-    all_middlewares.insert(all_middlewares.end(), group_middlewares.begin(), group_middlewares.end());
+    all_middlewares.insert(all_middlewares.end(), group_middlewares.begin(),
+                           group_middlewares.end());
     RouteGroup new_group(prefix + new_prefix, router, all_middlewares);
     group_routes(new_group);
+}
+
+void Router::add_static_route(const std::string& path,
+                              const std::string& base_dir)
+{
+    if (trees.find("GET") == trees.end())
+    {
+        trees["GET"] = std::make_shared<TrieNode>("", NodeType::STATIC);
+    }
+    std::shared_ptr<TrieNode> root = trees["GET"];
+    std::stringstream ss(path);
+    std::string segment;
+    std::vector<std::string> segments;
+    while (std::getline(ss, segment, '/'))
+    {
+        if (!segment.empty())
+        {
+            segments.push_back(segment);
+        }
+    }
+
+    std::shared_ptr<TrieNode> current = root;
+    for (const auto& seg : segments)
+    {
+        if (current->children.find(seg) == current->children.end())
+        {
+            current->children[seg] =
+                std::make_shared<TrieNode>(seg, NodeType::STATIC);
+        }
+        current = current->children[seg];
+    }
+    current->is_static_files = true;
+    current->static_files_base_dir = base_dir;
 }
 
 void Router::add_route(const std::string& method, const std::string& path,
@@ -46,9 +84,12 @@ void Router::add_route(const std::string& method, const std::string& path,
                        const std::vector<HttpHandler>& middlewares,
                        const std::string& name, int priority)
 {
-    if (!name.empty()) {
-        if (named_routes.count(name)) {
-            throw std::runtime_error("Route name '" + name + "' is already defined.");
+    if (!name.empty())
+    {
+        if (named_routes.count(name))
+        {
+            throw std::runtime_error("Route name '" + name +
+                                     "' is already defined.");
         }
         named_routes[name] = path;
         LOG_DEBUG("Registered route '" + path + "' with name '" + name + "'.");
@@ -68,6 +109,14 @@ void Router::add_route(const std::string& method, const std::string& path,
         {
             segments.push_back(segment);
         }
+    }
+
+    if (path == "/")
+    {
+        root->is_catch_all = true;
+        root->handler = handler;
+        root->middlewares = middlewares;
+        return;
     }
 
     std::shared_ptr<TrieNode> current = root;
@@ -101,6 +150,12 @@ void Router::add_route(const std::string& method, const std::string& path,
             part = seg.substr(1);
             current->is_wildcard = true;
         }
+        else if (seg.front() == '<' && seg.back() == '>')
+        {
+            type = NodeType::REGEX;
+            part = seg.substr(1, seg.length() - 2);
+            current->regex_pattern = part;
+        }
 
         if (current->children.find(part) == current->children.end())
         {
@@ -113,19 +168,29 @@ void Router::add_route(const std::string& method, const std::string& path,
             current->default_value = default_value;
         }
     }
-    if (current->handler != nullptr) {
-        LOG_WARNING("Route conflict: " + path + " conflicts with an existing route.");
+    if (current->handler != nullptr)
+    {
+        LOG_WARNING("Route conflict: " + path +
+                    " conflicts with an existing route.");
     }
     current->handler = handler;
     current->middlewares = middlewares;
-    if (priority != 0) {
+    if (priority != 0)
+    {
         current->priority = priority;
-    } else {
-        if (current->type == NodeType::STATIC) {
+    }
+    else
+    {
+        if (current->type == NodeType::STATIC)
+        {
             current->priority = 3;
-        } else if (current->type == NodeType::PARAMETER) {
+        }
+        else if (current->type == NodeType::PARAMETER)
+        {
             current->priority = 2;
-        } else if (current->type == NodeType::WILDCARD) {
+        }
+        else if (current->type == NodeType::WILDCARD)
+        {
             current->priority = 1;
         }
     }
@@ -140,10 +205,11 @@ void Router::group(const std::string& prefix,
 }
 
 void Router::group(const std::string& prefix,
-                     const std::vector<HttpHandler>& middlewares,
-                     const std::function<void(RouteGroup&)>& group_routes)
+                   const std::vector<HttpHandler>& middlewares,
+                   const std::function<void(RouteGroup&)>& group_routes)
 {
-    LOG_DEBUG("Creating route group with prefix '" + prefix + "' and " + std::to_string(middlewares.size()) + " middlewares.");
+    LOG_DEBUG("Creating route group with prefix '" + prefix + "' and " +
+              std::to_string(middlewares.size()) + " middlewares.");
     RouteGroup route_group(prefix, this, middlewares);
     group_routes(route_group);
 }
@@ -158,7 +224,8 @@ Router::url_for(const std::string& name,
         return "";
     }
     std::string path = named_routes[name];
-    LOG_DEBUG("Generating URL for named route '" + name + "' with path '" + path + "'.");
+    LOG_DEBUG("Generating URL for named route '" + name + "' with path '" +
+              path + "'.");
 
     for (const auto& [key, value] : params)
     {
@@ -167,8 +234,11 @@ Router::url_for(const std::string& name,
         if (pos != std::string::npos)
         {
             path.replace(pos, placeholder.length(), value);
-        } else {
-            LOG_WARNING("Parameter '" + key + "' not found in route path for '" + name + "'.");
+        }
+        else
+        {
+            LOG_WARNING("Parameter '" + key +
+                        "' not found in route path for '" + name + "'.");
         }
     }
     return path;
@@ -185,7 +255,7 @@ Router::match_route(http::Request& request,
     {
         effective_method = override_header;
         LOG_DEBUG("Method overridden by X-HTTP-Method-Override header to: " +
-                effective_method);
+                  effective_method);
     }
     else
     {
@@ -194,12 +264,11 @@ Router::match_route(http::Request& request,
         {
             effective_method = query_params.at("_method");
             LOG_DEBUG("Method overridden by _method query parameter to: " +
-                    effective_method);
+                      effective_method);
         }
     }
 
-    LOG_INFO("Matching route: " + effective_method + " " +
-                           request.get_path());
+    LOG_INFO("Matching route: " + effective_method + " " + request.get_path());
 
     MatchResult result;
     if (trees.find(effective_method) != trees.end())
@@ -208,6 +277,13 @@ Router::match_route(http::Request& request,
                                         request.get_path(), params);
         if (node)
         {
+            if (node->is_static_files)
+            {
+                utils::FileServer file_server(node->static_files_base_dir);
+                result.handler = [&](http::Request& req, http::Response& res)
+                { file_server.handle_request(req, res); };
+                return result;
+            }
             LOG_INFO("Route matched");
             result.handler = node->handler;
             result.middlewares = node->middlewares;
