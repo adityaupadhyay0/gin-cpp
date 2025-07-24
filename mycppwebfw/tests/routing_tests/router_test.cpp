@@ -1,9 +1,11 @@
-#include "mycppwebfw/utils/logger.h"
-#include "gtest/gtest.h"
 #include "mycppwebfw/routing/router.h"
+#include <fstream>
+#include "gtest/gtest.h"
 #include "mycppwebfw/http/request.h"
 #include "mycppwebfw/http/response.h"
 #include "mycppwebfw/routing/parameter_parser.h"
+#include "mycppwebfw/devtools/route_inspector.h"
+#include "mycppwebfw/utils/logger.h"
 
 void dummy_handler(mycppwebfw::http::Request&, mycppwebfw::http::Response&)
 {
@@ -17,6 +19,32 @@ TEST(RouterTest, StaticRoute)
     mycppwebfw::http::Request req = {"GET", "/hello"};
     auto result = router.match_route(req, params);
     ASSERT_NE(result.handler, nullptr);
+}
+
+TEST(RouterTest, StaticFileRoute)
+{
+    mycppwebfw::routing::Router router;
+    // Create a dummy file to serve
+    std::ofstream("static/test.txt") << "hello world";
+    router.add_static_route("/static", "static");
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/static/test.txt"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
+    mycppwebfw::http::Response res;
+    result.handler(req, res);
+    ASSERT_EQ(res.get_body(), "hello world");
+}
+
+TEST(RouterTest, RegexRoute)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/users/<id:\\d+>", dummy_handler);
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/users/123"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
+    ASSERT_EQ(params["id"], "123");
 }
 
 TEST(RouterTest, ParameterizedRoute)
@@ -233,11 +261,12 @@ TEST(RouterTest, Middleware)
 TEST(RouterTest, RouteGroup)
 {
     mycppwebfw::routing::Router router;
-    router.group("/api", [](mycppwebfw::routing::RouteGroup& group)
-    {
-        group.add_route("GET", "/users", dummy_handler);
-        group.add_route("POST", "/users", dummy_handler);
-    });
+    router.group("/api",
+                 [](mycppwebfw::routing::RouteGroup& group)
+                 {
+                     group.add_route("GET", "/users", dummy_handler);
+                     group.add_route("POST", "/users", dummy_handler);
+                 });
     std::unordered_map<std::string, std::string> params;
     mycppwebfw::http::Request req1 = {"GET", "/api/users"};
     auto result1 = router.match_route(req1, params);
@@ -250,13 +279,13 @@ TEST(RouterTest, RouteGroup)
 TEST(RouterTest, NestedRouteGroup)
 {
     mycppwebfw::routing::Router router;
-    router.group("/api", {}, [](mycppwebfw::routing::RouteGroup& group)
-    {
-        group.group("/v1", {}, [](mycppwebfw::routing::RouteGroup& group)
-        {
-            group.add_route("GET", "/users", dummy_handler);
-        });
-    });
+    router.group("/api", {},
+                 [](mycppwebfw::routing::RouteGroup& group)
+                 {
+                     group.group(
+                         "/v1", {}, [](mycppwebfw::routing::RouteGroup& group)
+                         { group.add_route("GET", "/users", dummy_handler); });
+                 });
     std::unordered_map<std::string, std::string> params;
     mycppwebfw::http::Request req = {"GET", "/api/v1/users"};
     auto result = router.match_route(req, params);
@@ -274,10 +303,11 @@ TEST(RouterTest, UrlFor)
 TEST(RouterTest, UrlForWithGroup)
 {
     mycppwebfw::routing::Router router;
-    router.group("/api", {}, [](mycppwebfw::routing::RouteGroup& group)
-    {
-        group.add_route("GET", "/users/:id", dummy_handler, {}, "user.show");
-    });
+    router.group("/api", {},
+                 [](mycppwebfw::routing::RouteGroup& group) {
+                     group.add_route("GET", "/users/:id", dummy_handler, {},
+                                     "user.show");
+                 });
     std::string url = router.url_for("user.show", {{"id", "123"}});
     ASSERT_EQ(url, "/api/users/123");
 }
@@ -286,16 +316,16 @@ TEST(RouterTest, GroupMiddleware)
 {
     mycppwebfw::routing::Router router;
     std::vector<std::string> middleware_calls;
-    auto middleware1 = [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&) {
-        middleware_calls.push_back("group_middleware");
-    };
-    auto middleware2 = [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&) {
-        middleware_calls.push_back("route_middleware");
-    };
+    auto middleware1 =
+        [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&)
+    { middleware_calls.push_back("group_middleware"); };
+    auto middleware2 =
+        [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&)
+    { middleware_calls.push_back("route_middleware"); };
 
-    router.group("/api", {middleware1}, [&](mycppwebfw::routing::RouteGroup& group) {
-        group.add_route("GET", "/users", dummy_handler, {middleware2});
-    });
+    router.group(
+        "/api", {middleware1}, [&](mycppwebfw::routing::RouteGroup& group)
+        { group.add_route("GET", "/users", dummy_handler, {middleware2}); });
 
     std::unordered_map<std::string, std::string> params;
     mycppwebfw::http::Request req = {"GET", "/api/users"};
@@ -304,7 +334,8 @@ TEST(RouterTest, GroupMiddleware)
     ASSERT_EQ(result.middlewares.size(), 2);
 
     mycppwebfw::http::Response res;
-    for (auto& mw : result.middlewares) {
+    for (auto& mw : result.middlewares)
+    {
         mw(req, res);
     }
     ASSERT_EQ(middleware_calls.size(), 2);
@@ -316,21 +347,26 @@ TEST(RouterTest, NestedGroupMiddleware)
 {
     mycppwebfw::routing::Router router;
     std::vector<std::string> middleware_calls;
-    auto middleware1 = [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&) {
-        middleware_calls.push_back("outer_group_middleware");
-    };
-    auto middleware2 = [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&) {
-        middleware_calls.push_back("inner_group_middleware");
-    };
-    auto middleware3 = [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&) {
-        middleware_calls.push_back("route_middleware");
-    };
+    auto middleware1 =
+        [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&)
+    { middleware_calls.push_back("outer_group_middleware"); };
+    auto middleware2 =
+        [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&)
+    { middleware_calls.push_back("inner_group_middleware"); };
+    auto middleware3 =
+        [&](mycppwebfw::http::Request&, mycppwebfw::http::Response&)
+    { middleware_calls.push_back("route_middleware"); };
 
-    router.group("/api", {middleware1}, [&](mycppwebfw::routing::RouteGroup& group) {
-        group.group("/v1", {middleware2}, [&](mycppwebfw::routing::RouteGroup& group) {
-            group.add_route("GET", "/users", dummy_handler, {middleware3});
-        });
-    });
+    router.group("/api", {middleware1},
+                 [&](mycppwebfw::routing::RouteGroup& group)
+                 {
+                     group.group("/v1", {middleware2},
+                                 [&](mycppwebfw::routing::RouteGroup& group) {
+                                     group.add_route("GET", "/users",
+                                                     dummy_handler,
+                                                     {middleware3});
+                                 });
+                 });
 
     std::unordered_map<std::string, std::string> params;
     mycppwebfw::http::Request req = {"GET", "/api/v1/users"};
@@ -339,7 +375,8 @@ TEST(RouterTest, NestedGroupMiddleware)
     ASSERT_EQ(result.middlewares.size(), 3);
 
     mycppwebfw::http::Response res;
-    for (auto& mw : result.middlewares) {
+    for (auto& mw : result.middlewares)
+    {
         mw(req, res);
     }
     ASSERT_EQ(middleware_calls.size(), 3);
@@ -352,13 +389,38 @@ TEST(RouterTest, RouteNameUniqueness)
 {
     mycppwebfw::routing::Router router;
     router.add_route("GET", "/users", dummy_handler, {}, "users");
-    ASSERT_DEATH(router.add_route("GET", "/other", dummy_handler, {}, "users"), "");
+    ASSERT_DEATH(router.add_route("GET", "/other", dummy_handler, {}, "users"),
+                 "");
 }
 
 TEST(RouterTest, UrlForMissingParams)
 {
     mycppwebfw::routing::Router router;
-    router.add_route("GET", "/users/:id/posts/:post_id", dummy_handler, {}, "user.post");
+    router.add_route("GET", "/users/:id/posts/:post_id", dummy_handler, {},
+                     "user.post");
     std::string url = router.url_for("user.post", {{"id", "123"}});
     ASSERT_EQ(url, "/users/123/posts/:post_id");
+}
+
+TEST(RouterTest, RouteInspector)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/users", dummy_handler);
+    router.add_route("POST", "/users", dummy_handler);
+    router.add_route("GET", "/users/:id", dummy_handler);
+
+    mycppwebfw::devtools::RouteInspector inspector(router);
+    auto routes = inspector.list_routes();
+
+    ASSERT_EQ(routes.size(), 3);
+}
+
+TEST(RouterTest, CatchAllRoute)
+{
+    mycppwebfw::routing::Router router;
+    router.add_route("GET", "/", dummy_handler);
+    std::unordered_map<std::string, std::string> params;
+    mycppwebfw::http::Request req = {"GET", "/some/unmatched/path"};
+    auto result = router.match_route(req, params);
+    ASSERT_NE(result.handler, nullptr);
 }

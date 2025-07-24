@@ -6,7 +6,7 @@ file(GLOB_RECURSE TEST_SOURCES
 
 # Create a test executable
 add_executable(run_tests ${TEST_SOURCES})
-target_link_libraries(run_tests PRIVATE mycppwebfw GTest::gtest_main)
+target_link_libraries(run_tests PRIVATE mycppwebfw devtools GTest::gtest_main)
 
 # Add the test to CTest
 add_test(NAME run_tests COMMAND run_tests)

@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Options for enabling/disabling features
-option(ENABLE_TESTING "Enable testing" OFF)
+option(ENABLE_TESTING "Enable testing" ON)
 option(ENABLE_BENCHMARKS "Enable benchmarks" OFF)
 option(ENABLE_SANITIZERS "Enable sanitizers" OFF)
 option(ENABLE_STATIC_ANALYSIS "Enable static analysis" OFF)
@@ -50,12 +50,9 @@ add_library(mycppwebfw INTERFACE)
 target_include_directories(mycppwebfw INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  "${CMAKE_CURRENT_SOURCE_DIR}/devtools"
   "${asio_SOURCE_DIR}/asio/include"
   "${nlohmann_json_SOURCE_DIR}/include"
-)
-
-target_include_directories(mycppwebfw INTERFACE
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 if(OpenSSL_FOUND)
@@ -89,6 +86,7 @@ endif()
 
 # Add subdirectories
 add_subdirectory(src)
+add_subdirectory(devtools)
 
 if(ENABLE_TESTING)
   enable_testing()
