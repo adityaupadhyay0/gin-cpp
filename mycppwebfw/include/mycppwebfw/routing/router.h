@@ -88,6 +88,7 @@ public:
     void group(const std::string& prefix,
                const std::vector<HttpHandler>& middlewares,
                const std::function<void(RouteGroup&)>& group_routes);
+    void add_static_route(const std::string& path, const std::string& base_dir);
 
     struct MatchResult
     {
