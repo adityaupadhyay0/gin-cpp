@@ -33,7 +33,7 @@ TEST(RouterTest, StaticFileRoute)
     ASSERT_NE(result.handler, nullptr);
     mycppwebfw::http::Response res;
     result.handler(req, res);
-    ASSERT_EQ(res.get_body(), "hello world");
+    ASSERT_EQ(res.content, "hello world");
 }
 
 TEST(RouterTest, RegexRoute)
