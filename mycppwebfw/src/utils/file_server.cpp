@@ -20,7 +20,7 @@ void FileServer::handle_request(http::Request& req, http::Response& res)
     if (file_path.find("..") != std::string::npos)
     {
         res.status = http::Response::StatusCode::bad_request;
-        res.set_body("Bad Request");
+        res.content = "Bad Request";
         return;
     }
 
@@ -28,13 +28,13 @@ void FileServer::handle_request(http::Request& req, http::Response& res)
     if (!file)
     {
         res.status = http::Response::StatusCode::not_found;
-        res.set_body("Not Found");
+        res.content = "Not Found";
         return;
     }
 
     std::stringstream buffer;
     buffer << file.rdbuf();
-    res.set_body(buffer.str());
+    res.content = buffer.str();
     res.status = http::Response::StatusCode::ok;
     // TODO: Set Content-Type header based on file extension
 }
