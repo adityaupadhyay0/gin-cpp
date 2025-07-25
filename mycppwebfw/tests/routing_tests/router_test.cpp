@@ -4,7 +4,7 @@
 #include "mycppwebfw/http/request.h"
 #include "mycppwebfw/http/response.h"
 #include "mycppwebfw/routing/parameter_parser.h"
-#include "mycppwebfw/devtools/route_inspector.h"
+#include "devtools/route_inspector.h"
 #include "mycppwebfw/utils/logger.h"
 
 void dummy_handler(mycppwebfw::http::Request&, mycppwebfw::http::Response&)
