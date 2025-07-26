@@ -77,13 +77,13 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
                 }
                 auto next_params = current_params;
                 next_params[val->part] = remaining_path;
-                matches.push_back(val);
+                find_matches(val, segments.size(), next_params);
             }
             else if (val->type == NodeType::REGEX)
             {
                 try
                 {
-                    std::regex pattern(val->regex_pattern);
+                    std::regex pattern(val->part);
                     if (std::regex_match(seg, pattern))
                     {
                         auto next_params = current_params;
@@ -117,36 +117,40 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
     params.clear();
 
     // Recalculate params for the best match
-    std::shared_ptr<TrieNode> current = root;
-    size_t segment_index = 0;
-    while (segment_index < segments.size())
+    std::function<bool(std::shared_ptr<TrieNode>, size_t,
+                       std::unordered_map<std::string, std::string>&)>
+        recalculate_params =
+            [&](std::shared_ptr<TrieNode> current, size_t segment_index,
+                std::unordered_map<std::string, std::string>& out_params) -> bool
     {
-        const auto& seg = segments[segment_index];
-        if (current->children.find(seg) != current->children.end())
+        if (segment_index == segments.size())
         {
-            current = current->children[seg];
-            segment_index++;
+            return current == best_match;
         }
-        else
+
+        const auto& seg = segments[segment_index];
+        if (current->children.count(seg))
         {
-            bool found = false;
-            for (auto const& [key, val] : current->children)
+            if (recalculate_params(current->children[seg], segment_index + 1,
+                                   out_params))
             {
-                if (val->type == NodeType::PARAMETER)
+                return true;
+            }
+        }
+
+        for (auto const& [key, val] : current->children)
+        {
+            if (val->type == NodeType::PARAMETER)
+            {
+                if (recalculate_params(val, segment_index + 1, out_params))
                 {
-                    params[val->part] = seg;
-                    current = val;
-                    found = true;
-                    segment_index++;
-                    break;
+                    out_params[val->part] = seg;
+                    return true;
                 }
             }
-            if (found)
-                continue;
-
-            for (auto const& [key, val] : current->children)
+            else if (val->type == NodeType::WILDCARD)
             {
-                if (val->type == NodeType::WILDCARD)
+                if (val == best_match)
                 {
                     std::string remaining_path;
                     for (size_t i = segment_index; i < segments.size(); ++i)
@@ -157,13 +161,35 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
                             remaining_path += "/";
                         }
                     }
-                    params[val->part] = remaining_path;
-                    return val;
+                    out_params[val->part] = remaining_path;
+                    return true;
                 }
             }
-            return nullptr;
+            else if (val->type == NodeType::REGEX)
+            {
+                try
+                {
+                    std::regex pattern(val->regex_pattern);
+                    if (std::regex_match(seg, pattern))
+                    {
+                        if (recalculate_params(val, segment_index + 1,
+                                               out_params))
+                        {
+                            out_params[val->part] = seg;
+                            return true;
+                        }
+                    }
+                }
+                catch (const std::regex_error& e)
+                {
+                    // Handle regex compilation error
+                }
+            }
         }
-    }
+        return false;
+    };
+
+    recalculate_params(root, 0, params);
 
     if (best_match->is_optional && !best_match->default_value.empty())
     {

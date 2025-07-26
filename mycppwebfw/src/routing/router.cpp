@@ -1,4 +1,5 @@
 #include "mycppwebfw/routing/router.h"
+#include "mycppwebfw/middleware/middleware_chain.h"
 #include <sstream>
 #include "mycppwebfw/routing/route_matcher.h"
 #include "utils/file_server.h"
@@ -17,29 +18,31 @@ Router::~Router()
 {
 }
 
-RouteGroup::RouteGroup(const std::string& prefix, Router* router,
-                       const std::vector<HttpHandler>& middlewares)
+RouteGroup::RouteGroup(
+    const std::string& prefix, Router* router,
+    const std::vector<mycppwebfw::middleware::Middleware>& middlewares)
     : prefix(prefix), router(router), middlewares(middlewares)
 {
 }
 
-void RouteGroup::add_route(const std::string& method, const std::string& path,
-                           HttpHandler handler,
-                           const std::vector<HttpHandler>& route_middlewares,
-                           const std::string& name, int priority)
+void RouteGroup::add_route(
+    const std::string& method, const std::string& path, HttpHandler handler,
+    const std::vector<mycppwebfw::middleware::Middleware>& route_middlewares,
+    const std::string& name, int priority)
 {
-    std::vector<HttpHandler> all_middlewares = middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> all_middlewares = middlewares;
     all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(),
                            route_middlewares.end());
     router->add_route(method, prefix + path, handler, all_middlewares, name,
                       priority);
 }
 
-void RouteGroup::group(const std::string& new_prefix,
-                       const std::vector<HttpHandler>& group_middlewares,
-                       const std::function<void(RouteGroup&)>& group_routes)
+void RouteGroup::group(
+    const std::string& new_prefix,
+    const std::vector<mycppwebfw::middleware::Middleware>& group_middlewares,
+    const std::function<void(RouteGroup&)>& group_routes)
 {
-    std::vector<HttpHandler> all_middlewares = middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> all_middlewares = middlewares;
     all_middlewares.insert(all_middlewares.end(), group_middlewares.begin(),
                            group_middlewares.end());
     RouteGroup new_group(prefix + new_prefix, router, all_middlewares);
@@ -79,10 +82,10 @@ void Router::add_static_route(const std::string& path,
     current->static_files_base_dir = base_dir;
 }
 
-void Router::add_route(const std::string& method, const std::string& path,
-                       HttpHandler handler,
-                       const std::vector<HttpHandler>& middlewares,
-                       const std::string& name, int priority)
+void Router::add_route(
+    const std::string& method, const std::string& path, HttpHandler handler,
+    const std::vector<mycppwebfw::middleware::Middleware>& middlewares,
+    const std::string& name, int priority)
 {
     if (!name.empty())
     {
@@ -204,9 +207,10 @@ void Router::group(const std::string& prefix,
     group_routes(route_group);
 }
 
-void Router::group(const std::string& prefix,
-                   const std::vector<HttpHandler>& middlewares,
-                   const std::function<void(RouteGroup&)>& group_routes)
+void Router::group(
+    const std::string& prefix,
+    const std::vector<mycppwebfw::middleware::Middleware>& middlewares,
+    const std::function<void(RouteGroup&)>& group_routes)
 {
     LOG_DEBUG("Creating route group with prefix '" + prefix + "' and " +
               std::to_string(middlewares.size()) + " middlewares.");
@@ -273,22 +277,39 @@ Router::match_route(http::Request& request,
     MatchResult result;
     if (trees.find(effective_method) != trees.end())
     {
+        LOG_DEBUG("Tree found for method: " + effective_method);
         auto node = RouteMatcher::match(trees[effective_method],
                                         request.get_path(), params);
         if (node)
         {
+            LOG_DEBUG("Node found for path: " + request.get_path());
             if (node->is_static_files)
             {
+                LOG_DEBUG("Static file route matched");
                 utils::FileServer file_server(node->static_files_base_dir);
                 result.handler = [&](http::Request& req, http::Response& res)
                 { file_server.handle_request(req, res); };
                 return result;
             }
             LOG_INFO("Route matched");
-            result.handler = node->handler;
-            result.middlewares = node->middlewares;
+            result.handler = [this, node](http::Request& req, http::Response& res)
+            {
+                std::vector<mycppwebfw::middleware::Middleware> all_middlewares = m_global_middlewares;
+                all_middlewares.insert(all_middlewares.end(), node->middlewares.begin(), node->middlewares.end());
+                std::sort(all_middlewares.begin(), all_middlewares.end());
+                middleware::MiddlewareChain chain(all_middlewares, node->handler);
+                chain.next(req, res);
+            };
             return result;
         }
+        else
+        {
+            LOG_DEBUG("Node not found for path: " + request.get_path());
+        }
+    }
+    else
+    {
+        LOG_DEBUG("Tree not found for method: " + effective_method);
     }
 
     LOG_WARNING("Route not found for method: " + effective_method);
@@ -317,6 +338,11 @@ Router::match_route(http::Request& request,
     }
 
     return result;
+}
+
+void Router::use(mycppwebfw::middleware::Middleware middleware)
+{
+    m_global_middlewares.push_back(std::move(middleware));
 }
 
 }  // namespace routing
