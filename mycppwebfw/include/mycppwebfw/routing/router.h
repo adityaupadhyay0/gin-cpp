@@ -8,6 +8,7 @@
 
 #include "mycppwebfw/http/request.h"
 #include "mycppwebfw/http/response.h"
+#include "mycppwebfw/middleware/middleware.h"
 #include "mycppwebfw/utils/logger.h"
 
 namespace mycppwebfw
@@ -31,7 +32,7 @@ struct TrieNode
     NodeType type;
     std::unordered_map<std::string, std::shared_ptr<TrieNode>> children;
     HttpHandler handler = nullptr;
-    std::vector<HttpHandler> middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> middlewares;
     bool is_wildcard = false;
     bool is_catch_all = false;
     bool is_static_files = false;
@@ -51,21 +52,24 @@ class Router;
 class RouteGroup
 {
 public:
-    RouteGroup(const std::string& prefix, Router* router,
-               const std::vector<HttpHandler>& middlewares = {});
-    void add_route(const std::string& method, const std::string& path,
-                   HttpHandler handler,
-                   const std::vector<HttpHandler>& middlewares = {},
-                   const std::string& name = "", int priority = 0);
+    RouteGroup(
+        const std::string& prefix, Router* router,
+        const std::vector<mycppwebfw::middleware::Middleware>& middlewares = {});
+    void
+    add_route(const std::string& method, const std::string& path,
+              HttpHandler handler,
+              const std::vector<mycppwebfw::middleware::Middleware>& middlewares = {},
+              const std::string& name = "", int priority = 0);
     void add_static_route(const std::string& path, const std::string& base_dir);
-    void group(const std::string& prefix,
-               const std::vector<HttpHandler>& middlewares,
-               const std::function<void(RouteGroup&)>& group_routes);
+    void
+    group(const std::string& prefix,
+          const std::vector<mycppwebfw::middleware::Middleware>& middlewares,
+          const std::function<void(RouteGroup&)>& group_routes);
 
 private:
     std::string prefix;
     Router* router;
-    std::vector<HttpHandler> middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> middlewares;
 };
 
 namespace devtools
@@ -79,21 +83,22 @@ public:
     Router();
     ~Router();
 
-    void add_route(const std::string& method, const std::string& path,
-                   HttpHandler handler,
-                   const std::vector<HttpHandler>& middlewares = {},
-                   const std::string& name = "", int priority = 0);
+    void
+    add_route(const std::string& method, const std::string& path,
+              HttpHandler handler,
+              const std::vector<mycppwebfw::middleware::Middleware>& middlewares = {},
+              const std::string& name = "", int priority = 0);
     void group(const std::string& prefix,
                const std::function<void(RouteGroup&)>& group_routes);
-    void group(const std::string& prefix,
-               const std::vector<HttpHandler>& middlewares,
-               const std::function<void(RouteGroup&)>& group_routes);
+    void
+    group(const std::string& prefix,
+          const std::vector<mycppwebfw::middleware::Middleware>& middlewares,
+          const std::function<void(RouteGroup&)>& group_routes);
     void add_static_route(const std::string& path, const std::string& base_dir);
 
     struct MatchResult
     {
         HttpHandler handler;
-        std::vector<HttpHandler> middlewares;
         std::vector<std::string> allowed_methods;
     };
 
@@ -111,11 +116,14 @@ public:
         return trees;
     }
 
+    void use(mycppwebfw::middleware::Middleware middleware);
+
 private:
     friend class RouteGroup;
     friend class devtools::RouteInspector;
     std::unordered_map<std::string, std::shared_ptr<TrieNode>> trees;
     std::unordered_map<std::string, std::string> named_routes;
+    std::vector<mycppwebfw::middleware::Middleware> m_global_middlewares;
 };
 
 }  // namespace routing
