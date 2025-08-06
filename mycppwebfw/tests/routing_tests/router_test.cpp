@@ -21,10 +21,13 @@ TEST(RouterTest, StaticRoute)
     ASSERT_NE(result.handler, nullptr);
 }
 
+#include <sys/stat.h>
+
 TEST(RouterTest, StaticFileRoute)
 {
     mycppwebfw::routing::Router router;
     // Create a dummy file to serve
+    mkdir("static", 0777);
     std::ofstream("static/test.txt") << "hello world";
     router.add_static_route("/static", "static");
     std::unordered_map<std::string, std::string> params;
@@ -46,7 +49,7 @@ TEST(RouterTest, RegexRoute)
     req.uri = "/users/123";
     auto result = router.match_route(req, params);
     ASSERT_NE(result.handler, nullptr);
-    ASSERT_EQ(params.size(), 0);
+    ASSERT_EQ(params["id"], "123");
 }
 
 TEST(RouterTest, ParameterizedRoute)

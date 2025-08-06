@@ -14,6 +14,11 @@ FileServer::FileServer(const std::string& base_dir) : base_dir_(base_dir)
 void FileServer::handle_request(http::Request& req, http::Response& res)
 {
     std::string path = req.get_path();
+    std::string prefix = "/" + base_dir_;
+    if (path.rfind(prefix, 0) == 0)
+    {
+        path.erase(0, prefix.length());
+    }
     std::string file_path = base_dir_ + path;
 
     // Basic security to prevent directory traversal
