@@ -30,6 +30,12 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
             [&](std::shared_ptr<TrieNode> current, size_t segment_index,
                 std::unordered_map<std::string, std::string> current_params)
     {
+        if (current->is_static_files)
+        {
+            matches.push_back(current);
+            return;
+        }
+
         if (segment_index == segments.size())
         {
             if (current->handler)
@@ -83,7 +89,7 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
             {
                 try
                 {
-                    std::regex pattern(val->part);
+                    std::regex pattern(val->regex_pattern);
                     if (std::regex_match(seg, pattern))
                     {
                         auto next_params = current_params;
@@ -121,7 +127,8 @@ RouteMatcher::match(const std::shared_ptr<TrieNode>& root,
                        std::unordered_map<std::string, std::string>&)>
         recalculate_params =
             [&](std::shared_ptr<TrieNode> current, size_t segment_index,
-                std::unordered_map<std::string, std::string>& out_params) -> bool
+                std::unordered_map<std::string, std::string>& out_params)
+        -> bool
     {
         if (segment_index == segments.size())
         {

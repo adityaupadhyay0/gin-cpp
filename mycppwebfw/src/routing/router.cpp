@@ -1,9 +1,10 @@
 #include "mycppwebfw/routing/router.h"
-#include "mycppwebfw/middleware/middleware_chain.h"
 #include <sstream>
+#include "mycppwebfw/middleware/error_handler.h"
+#include "mycppwebfw/middleware/middleware_chain.h"
 #include "mycppwebfw/routing/route_matcher.h"
-#include "utils/file_server.h"
 #include "mycppwebfw/utils/logger.h"
+#include "utils/file_server.h"
 
 namespace mycppwebfw
 {
@@ -12,6 +13,7 @@ namespace routing
 
 Router::Router()
 {
+    use(middleware::create_error_handler());
 }
 
 Router::~Router()
@@ -30,7 +32,8 @@ void RouteGroup::add_route(
     const std::vector<mycppwebfw::middleware::Middleware>& route_middlewares,
     const std::string& name, int priority)
 {
-    std::vector<mycppwebfw::middleware::Middleware> all_middlewares = middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> all_middlewares =
+        middlewares;
     all_middlewares.insert(all_middlewares.end(), route_middlewares.begin(),
                            route_middlewares.end());
     router->add_route(method, prefix + path, handler, all_middlewares, name,
@@ -42,7 +45,8 @@ void RouteGroup::group(
     const std::vector<mycppwebfw::middleware::Middleware>& group_middlewares,
     const std::function<void(RouteGroup&)>& group_routes)
 {
-    std::vector<mycppwebfw::middleware::Middleware> all_middlewares = middlewares;
+    std::vector<mycppwebfw::middleware::Middleware> all_middlewares =
+        middlewares;
     all_middlewares.insert(all_middlewares.end(), group_middlewares.begin(),
                            group_middlewares.end());
     RouteGroup new_group(prefix + new_prefix, router, all_middlewares);
@@ -151,13 +155,20 @@ void Router::add_route(
         {
             type = NodeType::WILDCARD;
             part = seg.substr(1);
-            current->is_wildcard = true;
         }
         else if (seg.front() == '<' && seg.back() == '>')
         {
             type = NodeType::REGEX;
-            part = seg.substr(1, seg.length() - 2);
-            current->regex_pattern = part;
+            std::string content = seg.substr(1, seg.length() - 2);
+            size_t colon_pos = content.find(':');
+            if (colon_pos != std::string::npos)
+            {
+                part = content.substr(0, colon_pos);
+            }
+            else
+            {
+                part = content;
+            }
         }
 
         if (current->children.find(part) == current->children.end())
@@ -169,6 +180,23 @@ void Router::add_route(
         {
             current->is_optional = is_optional;
             current->default_value = default_value;
+        }
+        else if (type == NodeType::WILDCARD)
+        {
+            current->is_wildcard = true;
+        }
+        else if (type == NodeType::REGEX)
+        {
+            std::string content = seg.substr(1, seg.length() - 2);
+            size_t colon_pos = content.find(':');
+            if (colon_pos != std::string::npos)
+            {
+                current->regex_pattern = content.substr(colon_pos + 1);
+            }
+            else
+            {
+                current->regex_pattern = ".*";
+            }
         }
     }
     if (current->handler != nullptr)
@@ -292,12 +320,17 @@ Router::match_route(http::Request& request,
                 return result;
             }
             LOG_INFO("Route matched");
-            result.handler = [this, node](http::Request& req, http::Response& res)
+            result.handler =
+                [this, node](http::Request& req, http::Response& res)
             {
-                std::vector<mycppwebfw::middleware::Middleware> all_middlewares = m_global_middlewares;
-                all_middlewares.insert(all_middlewares.end(), node->middlewares.begin(), node->middlewares.end());
+                std::vector<mycppwebfw::middleware::Middleware>
+                    all_middlewares = m_global_middlewares;
+                all_middlewares.insert(all_middlewares.end(),
+                                       node->middlewares.begin(),
+                                       node->middlewares.end());
                 std::sort(all_middlewares.begin(), all_middlewares.end());
-                middleware::MiddlewareChain chain(all_middlewares, node->handler);
+                middleware::MiddlewareChain chain(all_middlewares,
+                                                  node->handler);
                 chain.next(req, res);
             };
             return result;
