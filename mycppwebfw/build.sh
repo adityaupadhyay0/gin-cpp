@@ -22,4 +22,4 @@ cmake --build build
 echo "✅ Build completed successfully!"
 echo "📦 Binaries are available in the build directory"
 echo "🎯 Available executables:"
-find build/bin -type f -executable -printf "%f\n"
+find build -type f -executable -name "*_test" -o -name "hello_world" -o -name "run_tests"
