@@ -314,9 +314,9 @@ Router::match_route(http::Request& request,
             if (node->is_static_files)
             {
                 LOG_DEBUG("Static file route matched");
-                utils::FileServer file_server(node->static_files_base_dir);
-                result.handler = [&](http::Request& req, http::Response& res)
-                { file_server.handle_request(req, res); };
+                auto file_server = std::make_shared<utils::FileServer>(node->static_files_base_dir);
+                result.handler = [file_server](http::Request& req, http::Response& res)
+                { file_server->handle_request(req, res); };
                 return result;
             }
             LOG_INFO("Route matched");
