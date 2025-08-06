@@ -41,6 +41,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(benchmark)
 
+FetchContent_Declare(
+  zlib
+  GIT_REPOSITORY https://github.com/madler/zlib.git
+  GIT_TAG v1.2.13
+)
+FetchContent_MakeAvailable(zlib)
+
 
 find_package(OpenSSL)
 
@@ -57,6 +64,10 @@ target_include_directories(mycppwebfw INTERFACE
 
 if(OpenSSL_FOUND)
   target_link_libraries(mycppwebfw INTERFACE OpenSSL::SSL)
+endif()
+
+if(zlib_FOUND)
+    target_link_libraries(mycppwebfw INTERFACE zlib)
 endif()
 
 # Compiler-specific optimizations

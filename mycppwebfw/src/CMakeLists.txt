@@ -2,6 +2,15 @@
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/**/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/token_bucket.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/rate_limiter.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/cors_policy.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/cors.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/logging/formatter.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/logging/sinks.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/logger.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/compressor.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/compression.cpp"
 )
 
 # Add the sources to the parent target

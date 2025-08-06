@@ -2,16 +2,19 @@
 file(GLOB_RECURSE TEST_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/**/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/rate_limiter_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/cors_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/logger_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/compression_test.cpp"
 )
+
 
 # Create a test executable
 add_executable(run_tests ${TEST_SOURCES})
-target_link_libraries(run_tests PRIVATE mycppwebfw devtools GTest::gtest_main)
+target_link_libraries(run_tests PRIVATE mycppwebfw devtools GTest::gtest_main zlib)
 target_include_directories(run_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-    ${CMAKE_CURRENT_SOURCE_DIR}/../..
+    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../src"
 )
 
 # Add the test to CTest
