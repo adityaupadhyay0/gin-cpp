@@ -6,12 +6,12 @@
 namespace mycppwebfw {
 namespace middleware {
 
-class RequestId : public IMiddleware {
+class ErrorHandler : public IMiddleware {
 public:
     void operator()(Context& ctx, Next next) override;
 };
 
-std::shared_ptr<IMiddleware> create_request_id_middleware();
+std::shared_ptr<IMiddleware> create_error_handler();
 
 } // namespace middleware
 } // namespace mycppwebfw

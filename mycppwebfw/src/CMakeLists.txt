@@ -23,6 +23,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware/auth.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/utils/session_store.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware/session.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/middleware_utils.cpp"
 )
 
 # Add the sources to the parent target
