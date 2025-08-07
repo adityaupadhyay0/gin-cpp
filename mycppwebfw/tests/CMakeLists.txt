@@ -11,6 +11,7 @@ file(GLOB_RECURSE TEST_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/auth_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/auth_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/session_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/base_middleware_test.cpp"
 )
 
 

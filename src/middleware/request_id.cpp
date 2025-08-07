@@ -1,34 +1,25 @@
 #include "mycppwebfw/middleware/request_id.h"
 #include "mycppwebfw/utils/request_id_generator.h"
-#include "mycppwebfw/http/request.h"
-#include "mycppwebfw/http/response.h"
-#include <thread>
 
 namespace mycppwebfw {
 namespace middleware {
 
-// This is a simplified thread-local storage for the request ID.
-// In a real application, this would be part of a more comprehensive context object.
-thread_local std::string current_request_id;
+void RequestId::operator()(Context& ctx, Next next) {
+    auto& req = ctx.req();
+    auto& res = ctx.res();
+    auto request_id_header = req.get_header("X-Request-ID");
+    if (!request_id_header.empty()) {
+        ctx.set("request_id", request_id_header);
+    } else {
+        auto request_id = utils::RequestIdGenerator::generate();
+        ctx.set("request_id", request_id);
+        res.headers.push_back({"X-Request-ID", request_id});
+    }
+    next();
+}
 
-Middleware create_request_id_middleware() {
-    Middleware mw;
-    mw.priority = 90; // High priority, but after error handler
-    mw.handler = [](http::Request& req, http::Response& res, Next next) {
-        auto it = req.get_header("X-Request-ID");
-        if (!it.empty()) {
-            current_request_id = it;
-        } else {
-            current_request_id = utils::RequestIdGenerator::generate();
-        }
-
-        res.headers.push_back({"X-Request-ID", current_request_id});
-
-        if (next) {
-            next();
-        }
-    };
-    return mw;
+std::shared_ptr<IMiddleware> create_request_id_middleware() {
+    return std::make_shared<RequestId>();
 }
 
 } // namespace middleware
