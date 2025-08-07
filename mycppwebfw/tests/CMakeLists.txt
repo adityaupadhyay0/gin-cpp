@@ -8,6 +8,8 @@ file(GLOB_RECURSE TEST_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/compression_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/request_id_test.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/request_id_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/auth_test.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware_tests/auth_test.cpp"
 )
 
 
