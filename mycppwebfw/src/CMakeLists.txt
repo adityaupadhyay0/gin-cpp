@@ -21,6 +21,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/utils/api_key_registry.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/utils/jwt_parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware/auth.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/session_store.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/session.cpp"
 )
 
 # Add the sources to the parent target
