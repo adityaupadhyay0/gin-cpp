@@ -11,6 +11,10 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware/logger.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/utils/compressor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/middleware/compression.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/request_id_generator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/request_id.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/utils/request_id_generator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/middleware/request_id.cpp"
 )
 
 # Add the sources to the parent target
