@@ -49,3 +49,25 @@ The middleware will check for the `Authorization` header in the incoming request
 *   `Authorization: Bearer <token>`
 
 If the header is not present or the key/token is invalid, the middleware will return a `401 Unauthorized` response.
+
+## Session Middleware
+
+The `Session` middleware provides session management for the application. It uses a cookie to store a session ID, and a session store to store session data.
+
+### Usage
+
+To use the `Session` middleware, you first need to create an instance of a `SessionStore`. Then you can create the middleware and add it to your router.
+
+```cpp
+#include "mycppwebfw/middleware/session.h"
+#include "mycppwebfw/utils/session_store.h"
+#include <memory>
+
+// ...
+
+auto session_store = std::make_shared<mycppwebfw::utils::InMemorySessionStore>();
+
+router.use(mycppwebfw::middleware::create_session_middleware(session_store));
+```
+
+The middleware will check for a `session_id` cookie in the incoming request. If the cookie is not present, it will generate a new session ID and set it in a `Set-Cookie` header in the response.
